@@ -22,19 +22,18 @@ import { Sidebar } from './components/layout/Sidebar';
 
 // Store
 import { useAuthStore } from './store';
+import { initializeAuthHeaders } from './services/api';
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
-  const { isAuthenticated, fetchCurrentUser } = useAuthStore();
+  const { isAuthenticated, loading } = useAuthStore();
   
-  useEffect(() => {
-    if (isAuthenticated) {
-      fetchCurrentUser().catch(() => {
-        // Token might be invalid or expired
-        useAuthStore.getState().logout();
-      });
-    }
-  }, [isAuthenticated, fetchCurrentUser]);
+  // If still loading auth state, show loading indicator
+  if (loading) {
+    return <div className="flex items-center justify-center min-h-screen">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+    </div>;
+  }
   
   if (!isAuthenticated) {
     return <Navigate to="/login" />;
@@ -72,6 +71,18 @@ const PublicLayout = ({ children }) => {
 };
 
 function App() {
+  const { init } = useAuthStore();
+  
+  useEffect(() => {
+    // Initialize auth headers from localStorage token
+    initializeAuthHeaders();
+    
+    // Initialize auth state
+    init().catch(error => {
+      console.error("Error initializing auth state:", error);
+    });
+  }, [init]);
+  
   return (
     <Router>
       <ToastContainer position="top-right" autoClose={5000} />
