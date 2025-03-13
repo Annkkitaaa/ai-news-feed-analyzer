@@ -1,6 +1,6 @@
 import os
 from typing import List, Union, Dict, Any, Optional
-from pydantic import AnyHttpUrl, EmailStr, PostgresDsn, field_validator
+from pydantic import AnyHttpUrl, EmailStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from dotenv import load_dotenv
 
@@ -25,7 +25,7 @@ class Settings(BaseSettings):
         raise ValueError(v)
 
     # Database
-    DATABASE_URL: Optional[str] = os.getenv("DATABASE_URL")
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./newsfeed.db")
     MONGODB_URL: Optional[str] = os.getenv("MONGODB_URL")
     
     # Email Settings
@@ -56,14 +56,6 @@ class Settings(BaseSettings):
         if not v:
             return []
         if isinstance(v, str):
-            # Check if the string is already a JSON array
-            if v.startswith("[") and v.endswith("]"):
-                try:
-                    import json
-                    return json.loads(v)
-                except:
-                    pass
-            # Otherwise, split by comma
             return [i.strip() for i in v.split(",")]
         elif isinstance(v, list):
             return v
@@ -74,10 +66,10 @@ class Settings(BaseSettings):
     REDIS_PORT: int = int(os.getenv("REDIS_PORT", "6379"))
     
     # Celery
-    CELERY_BROKER_URL: str = os.getenv("CELERY_BROKER_URL", f"redis://localhost:6379/0")
-    CELERY_RESULT_BACKEND: str = os.getenv("CELERY_RESULT_BACKEND", f"redis://localhost:6379/0")
+    CELERY_BROKER_URL: str = os.getenv("CELERY_BROKER_URL", f"redis://{REDIS_HOST}:{REDIS_PORT}/0")
+    CELERY_RESULT_BACKEND: str = os.getenv("CELERY_RESULT_BACKEND", f"redis://{REDIS_HOST}:{REDIS_PORT}/0")
 
-    model_config = SettingsConfigDict(case_sensitive=True, env_file=".env")
+    model_config = SettingsConfigDict(case_sensitive=True)
 
 
 settings = Settings()
