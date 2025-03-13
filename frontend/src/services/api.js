@@ -1,59 +1,49 @@
-// Add these methods to your existing profileService object
-export const profileService = {
-    getProfile: async () => {
-      const response = await api.get('/profiles/me');
-      return response.data;
-    },
-    
-    getAllInterests: async () => {
-      const response = await api.get('/profiles/interests');
-      return response.data;
-    },
-    
-    createInterest: async (interestData) => {
-      const response = await api.post('/profiles/interests', interestData);
-      return response.data;
-    },
-    
-    addUserInterest: async (interestId) => {
-      const response = await api.post(`/profiles/interests/${interestId}/add`);
-      return response.data;
-    },
-    
-    removeUserInterest: async (interestId) => {
-      const response = await api.post(`/profiles/interests/${interestId}/remove`);
-      return response.data;
-    },
-    
-    getAllNewsSources: async () => {
-      const response = await api.get('/profiles/news-sources');
-      return response.data;
-    },
-    
-    createNewsSource: async (sourceData) => {
-      const response = await api.post('/profiles/news-sources', sourceData);
-      return response.data;
-    },
-    
-    addUserNewsSource: async (sourceId) => {
-      const response = await api.post(`/profiles/news-sources/${sourceId}/add`);
-      return response.data;
-    },
-    
-    removeUserNewsSource: async (sourceId) => {
-      const response = await api.post(`/profiles/news-sources/${sourceId}/remove`);
-      return response.data;
-    },
-    
-    getReadHistory: async (skip = 0, limit = 50) => {
-      const response = await api.get('/profiles/read-history', {
-        params: { skip, limit },
-      });
-      return response.data;
-    },
-    
-    clearReadHistory: async () => {
-      const response = await api.delete('/profiles/read-history');
-      return response.data;
-    },
-  };
+import axios from 'axios';
+
+// Get API base URL from environment variable
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
+
+// Create axios instance
+const api = axios.create({
+  baseURL: API_BASE_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Add request interceptor to include auth token
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers['Authorization'] = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Add response interceptor to handle common errors
+api.interceptors.response.use(
+  (response) => {
+    return response;
+  },
+  (error) => {
+    if (error.response) {
+      // Handle 401 Unauthorized errors (expired or invalid token)
+      if (error.response.status === 401) {
+        // Clear token and redirect to login if not already there
+        if (window.location.pathname !== '/login') {
+          localStorage.removeItem('token');
+          // Use a custom event to notify the app about auth error
+          window.dispatchEvent(new CustomEvent('auth-error', { detail: 'Session expired' }));
+        }
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
+export default api;
