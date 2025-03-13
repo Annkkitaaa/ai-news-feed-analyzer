@@ -22,7 +22,7 @@ target_metadata = Base.metadata
 # Import environment variables from .env file via app settings
 from app.core.config import settings
 
-# Set the database URL in the alembic config
+# Override with environment variable
 config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
 
 def run_migrations_offline() -> None:
@@ -46,8 +46,11 @@ def run_migrations_online() -> None:
     if settings.DATABASE_URL.startswith("sqlite"):
         connect_args = {"check_same_thread": False}
     
+    alembic_config = config.get_section(config.config_ini_section)
+    alembic_config["sqlalchemy.url"] = settings.DATABASE_URL
+    
     connectable = engine_from_config(
-        config.get_section(config.config_ini_section, {}),
+        alembic_config,
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
         connect_args=connect_args
