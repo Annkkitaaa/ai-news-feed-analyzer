@@ -6,17 +6,27 @@ import { FiMail, FiExternalLink, FiRefreshCw, FiZap, FiArrowRight } from 'react-
 import { toast } from 'react-toastify';
 
 export const NewsDigest = () => {
-  const { newsDigest, fetchNewsDigest, loading } = useNewsStore();
+  const { newsDigest, fetchNewsDigest, loading, error } = useNewsStore();
   const { sendManualDigest, loading: sendingDigest } = useSubscriptionStore();
   const [timeframe, setTimeframe] = useState('daily');
   
   useEffect(() => {
-    fetchNewsDigest(timeframe);
+    // Fetch digest on component mount and when timeframe changes
+    const fetchData = async () => {
+      try {
+        await fetchNewsDigest(timeframe);
+      } catch (error) {
+        console.error("Error fetching digest:", error);
+      }
+    };
+    
+    fetchData();
   }, [fetchNewsDigest, timeframe]);
   
   const handleRefresh = () => {
-    fetchNewsDigest(timeframe);
-    toast.success(`Refreshing ${timeframe} digest`);
+    fetchNewsDigest(timeframe)
+      .then(() => toast.success(`Refreshing ${timeframe} digest`))
+      .catch(err => toast.error(`Failed to refresh digest: ${err.message}`));
   };
   
   const handleSendEmail = async () => {
@@ -44,6 +54,30 @@ export const NewsDigest = () => {
           <div className="absolute top-0 left-0 w-full h-full border-4 border-primary-200 dark:border-primary-900 rounded-full"></div>
           <div className="absolute top-0 left-0 w-full h-full border-4 border-transparent border-t-primary-600 dark:border-t-primary-400 rounded-full animate-spin"></div>
         </div>
+      </div>
+    );
+  }
+  
+  // Show error message if there's an error
+  if (error && !loading && !newsDigest) {
+    return (
+      <div className="glass-card p-8 text-center">
+        <div className="text-red-500 mb-4">
+          <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+        </div>
+        <h2 className="text-xl font-medium mb-2">Error Loading Digest</h2>
+        <p className="text-light-800 dark:text-light-500 mb-6">
+          {typeof error === 'string' ? error : 'Failed to load digest. Please try again.'}
+        </p>
+        <button
+          onClick={handleRefresh}
+          className="primary-button inline-flex items-center"
+        >
+          <FiRefreshCw className="mr-2" />
+          Try Again
+        </button>
       </div>
     );
   }
@@ -103,7 +137,7 @@ export const NewsDigest = () => {
         </div>
       </div>
       
-      {newsDigest ? (
+      {newsDigest && newsDigest.overview && Object.keys(newsDigest.overview).length > 0 ? (
         <div className="space-y-8">
           {/* Digest Overview */}
           <div className="glass-card p-6">
@@ -123,29 +157,31 @@ export const NewsDigest = () => {
           </div>
           
           {/* Top Stories */}
-          <div className="glass-card p-6">
-            <h2 className="text-xl font-medium mb-4">Top Stories</h2>
-            
-            <div className="space-y-6">
-              {newsDigest.top_stories && newsDigest.top_stories.map((story) => (
-                <div key={story.id} className="card p-4 hover:shadow-md transition-shadow">
-                  <h3 className="font-medium text-lg mb-1">{story.title}</h3>
-                  <div className="text-xs text-light-700 dark:text-light-600 mb-2">
-                    {story.source} • {formatDate(story.published_at)}
+          {newsDigest.top_stories && newsDigest.top_stories.length > 0 && (
+            <div className="glass-card p-6">
+              <h2 className="text-xl font-medium mb-4">Top Stories</h2>
+              
+              <div className="space-y-6">
+                {newsDigest.top_stories.map((story) => (
+                  <div key={story.id} className="card p-4 hover:shadow-md transition-shadow">
+                    <h3 className="font-medium text-lg mb-1">{story.title}</h3>
+                    <div className="text-xs text-light-700 dark:text-light-600 mb-2">
+                      {story.source} • {formatDate(story.published_at)}
+                    </div>
+                    <p className="text-light-900 dark:text-light-400 text-sm mb-3">{story.summary}</p>
+                    <a 
+                      href={story.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm flex items-center text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-300 transition-colors"
+                    >
+                      Read full article <FiExternalLink className="ml-1" />
+                    </a>
                   </div>
-                  <p className="text-light-900 dark:text-light-400 text-sm mb-3">{story.summary}</p>
-                  <a 
-                    href={story.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm flex items-center text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-300 transition-colors"
-                  >
-                    Read full article <FiExternalLink className="ml-1" />
-                  </a>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       ) : (
         <div className="glass-card p-8 text-center">
