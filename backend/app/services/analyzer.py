@@ -11,11 +11,11 @@ from app.core.config import settings
 
 # LLM and embedding imports
 from langchain.chains import LLMChain
-from langchain.llms import HuggingFacePipeline, OpenAI
+from langchain_community.llms import HuggingFacePipeline, OpenAI
 from langchain.prompts import PromptTemplate
-from langchain.embeddings import HuggingFaceEmbeddings
+from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.vectorstores import FAISS
+from langchain_community.vectorstores import FAISS
 from sentence_transformers import SentenceTransformer
 from transformers import pipeline
 

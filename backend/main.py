@@ -2,9 +2,14 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.db.session import engine
+from app.db.models import Base
 from app.api.routes import auth, news, profiles, subscriptions
 from app.core.config import settings
 from app.core.events import create_start_app_handler, create_stop_app_handler
+
+# Create database tables
+Base.metadata.create_all(bind=engine)
 
 def create_application() -> FastAPI:
     application = FastAPI(
