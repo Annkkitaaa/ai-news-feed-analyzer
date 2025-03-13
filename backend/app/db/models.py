@@ -1,40 +1,46 @@
-from datetime import datetime, timedelta
+from datetime import datetime
 import uuid
 from typing import List, Optional, Dict, Any
-from sqlalchemy import Column, String, Boolean, Integer, DateTime, ForeignKey, Table, Text, JSON, Float
-from sqlalchemy.dialects.postgresql import UUID, ARRAY
+from sqlalchemy import Column, String, Boolean, Integer, DateTime, ForeignKey, Table, Text, JSON
+from sqlalchemy.dialects.sqlite import JSON as SQLiteJSON
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declarative_base
 
 Base = declarative_base()
 
+# Helper for UUID columns
+def get_uuid_column():
+    """Returns UUID column that works for both PostgreSQL and SQLite"""
+    return Column(String(36), default=lambda: str(uuid.uuid4()), primary_key=True)
+
 # Many-to-many relationship tables
 user_interest = Table(
     "user_interest",
     Base.metadata,
-    Column("user_id", UUID(as_uuid=True), ForeignKey("users.id"), primary_key=True),
-    Column("interest_id", UUID(as_uuid=True), ForeignKey("interests.id"), primary_key=True),
+    Column("user_id", String(36), ForeignKey("users.id"), primary_key=True),
+    Column("interest_id", String(36), ForeignKey("interests.id"), primary_key=True),
 )
 
 user_news_source = Table(
     "user_news_source",
     Base.metadata,
-    Column("user_id", UUID(as_uuid=True), ForeignKey("users.id"), primary_key=True),
-    Column("news_source_id", UUID(as_uuid=True), ForeignKey("news_sources.id"), primary_key=True),
+    Column("user_id", String(36), ForeignKey("users.id"), primary_key=True),
+    Column("news_source_id", String(36), ForeignKey("news_sources.id"), primary_key=True),
 )
 
 news_category = Table(
     "news_category",
     Base.metadata,
-    Column("news_id", UUID(as_uuid=True), ForeignKey("news.id"), primary_key=True),
-    Column("category_id", UUID(as_uuid=True), ForeignKey("categories.id"), primary_key=True),
+    Column("news_id", String(36), ForeignKey("news.id"), primary_key=True),
+    Column("category_id", String(36), ForeignKey("categories.id"), primary_key=True),
 )
 
 
 class User(Base):
     __tablename__ = "users"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = get_uuid_column()
     email = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
     first_name = Column(String)
@@ -59,10 +65,10 @@ class User(Base):
 class Interest(Base):
     __tablename__ = "interests"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = get_uuid_column()
     name = Column(String, unique=True, index=True, nullable=False)
     description = Column(String)
-    keywords = Column(ARRAY(String), default=[])
+    keywords = Column(JSON, default=list)
     
     # Relationships
     users = relationship("User", secondary=user_interest, back_populates="interests")
@@ -74,7 +80,7 @@ class Interest(Base):
 class Category(Base):
     __tablename__ = "categories"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = get_uuid_column()
     name = Column(String, unique=True, index=True, nullable=False)
     description = Column(String)
     
@@ -88,11 +94,11 @@ class Category(Base):
 class NewsSource(Base):
     __tablename__ = "news_sources"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = get_uuid_column()
     name = Column(String, unique=True, index=True, nullable=False)
     url = Column(String, nullable=False)
     source_type = Column(String, nullable=False)  # rss, api, scraped
-    config = Column(JSON, default={})  # Source-specific configuration
+    config = Column(JSON, default=dict)  # Source-specific configuration
     is_active = Column(Boolean, default=True)
     
     # Relationships
@@ -106,7 +112,7 @@ class NewsSource(Base):
 class News(Base):
     __tablename__ = "news"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = get_uuid_column()
     title = Column(String, nullable=False)
     url = Column(String, unique=True, index=True, nullable=False)
     content = Column(Text)
@@ -114,8 +120,8 @@ class News(Base):
     author = Column(String)
     image_url = Column(String)
     summary = Column(Text)
-    source_id = Column(UUID(as_uuid=True), ForeignKey("news_sources.id"))
-    relevance_scores = Column(JSON, default={})  # Interest ID to score mapping
+    source_id = Column(String(36), ForeignKey("news_sources.id"))
+    relevance_scores = Column(JSON, default=dict)  # Interest ID to score mapping
     
     # Relationships
     source = relationship("NewsSource", back_populates="news")
@@ -129,9 +135,9 @@ class News(Base):
 class ReadHistory(Base):
     __tablename__ = "read_history"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"))
-    news_id = Column(UUID(as_uuid=True), ForeignKey("news.id"))
+    id = get_uuid_column()
+    user_id = Column(String(36), ForeignKey("users.id"))
+    news_id = Column(String(36), ForeignKey("news.id"))
     timestamp = Column(DateTime, default=datetime.utcnow)
     duration_seconds = Column(Integer, default=0)
     
