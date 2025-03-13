@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to {{ project_name }}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: #4338ca;
+            margin-bottom: 10px;
+        }
+        .welcome {
+            font-size: 28px;
+            margin-bottom: 20px;
+        }
+        .content {
+            margin-bottom: 30px;
+        }
+        .button {
+            display: inline-block;
+            background-color: #4338ca;
+            color: white;
+            text-decoration: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            font-weight: bold;
+            margin: 20px 0;
+        }
+        .section {
+            margin-bottom: 25px;
+        }
+        .section-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .footer {
+            margin-top: 40px;
+            font-size: 12px;
+            color: #999;
+            text-align: center;
+            border-top: 1px solid #eee;
+            padding-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">{{ project_name }}</div>
+        <div class="welcome">Welcome{% if user_name %} {{ user_name }}{% endif %}!</div>
+    </div>
+
+    <div class="content">
+        <p>Thank you for joining {{ project_name }}. We're excited to help you discover news that matters to you.</p>
+        
+        <div class="section">
+            <div class="section-title">Getting Started</div>
+            <p>Here are a few things you can do to get the most out of your experience:</p>
+            <ul>
+                <li>Update your profile and add your interests</li>
+                <li>Choose your preferred news sources</li>
+                <li>Set up your email digest preferences</li>
+            </ul>
+            
+            <center>
+                <a href="{{ login_url }}" class="button">Login to Your Account</a>
+            </center>
+        </div>
+        
+        <div class="section">
+            <div class="section-title">Personalized News Feed</div>
+            <p>Our AI technology will learn from your interactions to deliver increasingly relevant news articles tailored to your interests.</p>
+        </div>
+        
+        <div class="section">
+            <div class="section-title">Email Digests</div>
+            <p>You can receive daily or weekly digests of the most important news based on your preferences. Configure your settings to get exactly what you want.</p>
+            
+            <center>
+                <a href="{{ preferences_url }}" class="button">Update Your Preferences</a>
+            </center>
+        </div>
+    </div>
+
+    <div class="footer">
+        <p>If you have any questions or feedback, simply reply to this email.</p>
+        <p>&copy; 2023 {{ project_name }}. All rights reserved.</p>
+    </div>
+</body>
+</html>
