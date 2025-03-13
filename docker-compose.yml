@@ -1,0 +1,147 @@
+version: '3.8'
+
+services:
+  # Backend API service
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/news_feed
+      - MONGODB_URL=mongodb://mongodb:27017/
+      - REDIS_HOST=redis
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - SECRET_KEY=${SECRET_KEY}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      - EMAILS_FROM_EMAIL=${EMAILS_FROM_EMAIL}
+      - LLM_TYPE=${LLM_TYPE}
+      - LLM_MODEL_ID=${LLM_MODEL_ID}
+      - LLM_API_KEY=${LLM_API_KEY}
+      - SCRAPEGRAPH_API_KEY=${SCRAPEGRAPH_API_KEY}
+      - NEWS_API_KEY=${NEWS_API_KEY}
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - db
+      - mongodb
+      - redis
+
+  # Frontend service
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "3000:80"
+    environment:
+      - REACT_APP_API_URL=http://localhost:8000/api/v1
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
+  # Celery worker for background tasks
+  celery_worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: always
+    command: celery -A celery_worker worker --loglevel=info
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/news_feed
+      - MONGODB_URL=mongodb://mongodb:27017/
+      - REDIS_HOST=redis
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - SECRET_KEY=${SECRET_KEY}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      - EMAILS_FROM_EMAIL=${EMAILS_FROM_EMAIL}
+      - LLM_TYPE=${LLM_TYPE}
+      - LLM_MODEL_ID=${LLM_MODEL_ID}
+      - LLM_API_KEY=${LLM_API_KEY}
+      - SCRAPEGRAPH_API_KEY=${SCRAPEGRAPH_API_KEY}
+      - NEWS_API_KEY=${NEWS_API_KEY}
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - backend
+      - db
+      - mongodb
+      - redis
+
+  # Celery beat scheduler for periodic tasks
+  celery_beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: always
+    command: celery -A celery_worker beat --loglevel=info
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/news_feed
+      - MONGODB_URL=mongodb://mongodb:27017/
+      - REDIS_HOST=redis
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - SECRET_KEY=${SECRET_KEY}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      - EMAILS_FROM_EMAIL=${EMAILS_FROM_EMAIL}
+      - LLM_TYPE=${LLM_TYPE}
+      - LLM_MODEL_ID=${LLM_MODEL_ID}
+      - LLM_API_KEY=${LLM_API_KEY}
+      - SCRAPEGRAPH_API_KEY=${SCRAPEGRAPH_API_KEY}
+      - NEWS_API_KEY=${NEWS_API_KEY}
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - celery_worker
+
+  # PostgreSQL database for relational data
+  db:
+    image: postgres:13
+    restart: always
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=news_feed
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  # MongoDB for storing news content
+  mongodb:
+    image: mongo:4.4
+    restart: always
+    environment:
+      - MONGO_DATA_DIR=/data/db
+    volumes:
+      - mongo_data:/data/db
+    ports:
+      - "27017:27017"
+
+  # Redis for caching and message broker
+  redis:
+    image: redis:6
+    restart: always
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+
+volumes:
+  postgres_data:
+  mongo_data:
+  redis_data:

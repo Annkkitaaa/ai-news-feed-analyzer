@@ -89,7 +89,7 @@
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  @apply bg-light-800 dark:bg-dark-50;
+  @apply bg-light-800 dark:bg-dark-100;
 }
 
 /* Line clamp utilities */
