@@ -26,12 +26,12 @@ export const Sidebar = () => {
   // Navigation items
   const navItems = [
     { name: 'Dashboard', icon: FiHome, path: '/dashboard' },
-    { name: 'Digest', icon: FiFileText, path: '/digest' },
-    { name: 'Trending', icon: FiTrendingUp, path: '/trends' },
+    { name: 'Digest', icon: FiFileText, path: '/digest' }, // This is correct
+    { name: 'Trending', icon: FiTrendingUp, path: '/dashboard' }, // Changed from /trends to /dashboard
     { name: 'Interests', icon: FiBookmark, path: '/interests' },
     { name: 'Sources', icon: FiRss, path: '/news-sources' },
     { name: 'History', icon: FiClock, path: '/history' },
-    { name: 'Analytics', icon: FiActivity, path: '/analytics' },
+    { name: 'Analytics', icon: FiActivity, path: '/dashboard' }, // Changed from /analytics
     { name: 'Profile', icon: FiUser, path: '/profile' },
     { name: 'Settings', icon: FiSettings, path: '/settings' },
   ];
