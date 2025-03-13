@@ -1,0 +1,108 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://api.fontshare.com/v2/css?f[]=clash-display@400,500,600,700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap');
+
+@layer base {
+  body {
+    @apply bg-light-300 text-dark-300 dark:bg-dark-400 dark:text-light-300 font-sans;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display font-medium;
+  }
+  
+  ::selection {
+    @apply bg-primary-200 text-primary-900;
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-white bg-opacity-70 dark:bg-dark-300 dark:bg-opacity-70 backdrop-blur-md border border-light-500 dark:border-dark-100 rounded-xl shadow-glass;
+  }
+  
+  .glass-button {
+    @apply px-4 py-2 bg-white bg-opacity-10 backdrop-blur-md border border-white border-opacity-20 rounded-lg shadow-sm hover:bg-opacity-20 transition-all duration-200 font-medium;
+  }
+  
+  .primary-button {
+    @apply px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg shadow-sm transition-colors duration-200 font-medium;
+  }
+  
+  .secondary-button {
+    @apply px-4 py-2 bg-light-400 hover:bg-light-500 dark:bg-dark-200 dark:hover:bg-dark-100 text-dark-300 dark:text-light-300 rounded-lg shadow-sm transition-colors duration-200 font-medium;
+  }
+  
+  .card {
+    @apply bg-white dark:bg-dark-300 rounded-xl shadow-card hover:shadow-lg transition-shadow duration-300;
+  }
+  
+  .input {
+    @apply block w-full px-4 py-2 rounded-lg border border-light-600 dark:border-dark-100 bg-light-100 dark:bg-dark-200 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400 focus:border-transparent transition-all duration-200;
+  }
+  
+  .tag {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-primary-100 text-primary-800 dark:bg-primary-900 dark:text-primary-100;
+  }
+  
+  .news-card {
+    @apply card overflow-hidden hover:translate-y-[-2px] transition-all duration-300;
+  }
+  
+  .news-card-image {
+    @apply w-full h-48 object-cover transition-transform duration-700 hover:scale-105;
+  }
+}
+
+/* Animations */
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-light-400 dark:bg-dark-200;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-light-700 dark:bg-dark-100 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-light-800 dark:bg-dark-50;
+}
+
+/* Line clamp utilities */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
