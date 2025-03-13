@@ -47,14 +47,12 @@ export const profileService = {
   },
   
   getReadHistory: async (skip = 0, limit = 50) => {
-    const response = await api.get('/profiles/read-history', {
-      params: { skip, limit },
-    });
+    const response = await api.get(`/profiles/read-history?skip=${skip}&limit=${limit}`);
     return response.data;
   },
   
   clearReadHistory: async () => {
     const response = await api.delete('/profiles/read-history');
     return response.data;
-  },
+  }
 };
