@@ -29,11 +29,13 @@ export const useAuthStore = create((set, get) => ({
       // Use the special loginApi function that formats data correctly
       const response = await loginApi(email, password);
       
-      // Store the token
+      // Store the token - make sure we're using the correct property name from API response
       const token = response.data.access_token;
       localStorage.setItem('token', token);
       
-      // Fetch the user data
+      console.log("Token received:", token); // For debugging
+      
+      // Fetch the user data with the token explicitly included
       try {
         const userResponse = await api.get('/auth/me', {
           headers: {
@@ -47,6 +49,7 @@ export const useAuthStore = create((set, get) => ({
           loading: false 
         });
       } catch (userError) {
+        console.error("Error fetching user data:", userError);
         // If fetching user fails, still authenticate with token
         set({ 
           isAuthenticated: true, 
