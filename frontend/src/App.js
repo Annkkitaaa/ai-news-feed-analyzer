@@ -16,17 +16,28 @@ import { NewsDetail } from './components/NewsDetail';
 import { NewsDigest } from './components/NewsDigest';
 
 // Layout Components
-import { Header } from './components/layout/Header';
+import { DashboardLayout } from './components/layout/DashboardLayout';
 import { Footer } from './components/layout/Footer';
-import { Sidebar } from './components/layout/Sidebar';
 
 // Store
 import { useAuthStore } from './store';
 import { initializeAuthHeaders } from './services/api';
 
+// Public Layout for unauthenticated routes
+const PublicLayout = ({ children }) => {
+  return (
+    <div className="min-h-screen bg-light-300 dark:bg-dark-400">
+      <main>
+        {children}
+      </main>
+      <Footer />
+    </div>
+  );
+};
+
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
-  const { isAuthenticated, loading } = useAuthStore();
+  const { isAuthenticated, loading, init } = useAuthStore();
   
   // If still loading auth state, show loading indicator
   if (loading) {
@@ -40,34 +51,6 @@ const ProtectedRoute = ({ children }) => {
   }
   
   return children;
-};
-
-// Layout with Sidebar for authenticated routes
-const DashboardLayout = ({ children }) => {
-  return (
-    <div className="flex min-h-screen bg-gray-100">
-      <Sidebar />
-      <div className="flex-1">
-        <Header />
-        <main className="p-4">
-          {children}
-        </main>
-        <Footer />
-      </div>
-    </div>
-  );
-};
-
-// Public Layout for unauthenticated routes
-const PublicLayout = ({ children }) => {
-  return (
-    <div className="min-h-screen bg-gray-100">
-      <main>
-        {children}
-      </main>
-      <Footer />
-    </div>
-  );
 };
 
 function App() {
@@ -109,7 +92,7 @@ function App() {
           </PublicLayout>
         } />
         
-        {/* Protected Routes */}
+        {/* Protected Routes - Using DashboardLayout */}
         <Route path="/dashboard" element={
           <ProtectedRoute>
             <DashboardLayout>
