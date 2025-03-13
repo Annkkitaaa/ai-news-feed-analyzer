@@ -1,20 +1,23 @@
+import os
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from typing import Generator
-import os
 
 from app.core.config import settings
 
-# Create database directory if it doesn't exist (for SQLite)
+# Handle SQLite database path
 if settings.DATABASE_URL.startswith('sqlite:///'):
     db_path = settings.DATABASE_URL.replace('sqlite:///', '')
-    os.makedirs(os.path.dirname(os.path.abspath(db_path)), exist_ok=True)
+    # Ensure the directory exists if it's not in the current directory
+    if '/' in db_path:
+        os.makedirs(os.path.dirname(os.path.abspath(db_path)), exist_ok=True)
 
 # Create SQLAlchemy engine
 engine = create_engine(
     settings.DATABASE_URL, 
     pool_pre_ping=True,
+    # For SQLite, these parameters are important
     connect_args={"check_same_thread": False} if settings.DATABASE_URL.startswith("sqlite") else {}
 )
 
