@@ -1,7 +1,7 @@
 import os
 from typing import List, Union, Dict, Any, Optional
 from pydantic import AnyHttpUrl, EmailStr, PostgresDsn, field_validator
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8  # 8 days
     
     # CORS
-    BACKEND_CORS_ORIGINS: List[AnyHttpUrl] = []
+    BACKEND_CORS_ORIGINS: List[str] = []
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     def assemble_cors_origins(cls, v: Union[str, List[str]]) -> Union[List[str], str]:
@@ -25,7 +25,7 @@ class Settings(BaseSettings):
         raise ValueError(v)
 
     # Database
-    DATABASE_URL: Optional[PostgresDsn] = os.getenv("DATABASE_URL")
+    DATABASE_URL: Optional[str] = os.getenv("DATABASE_URL")
     MONGODB_URL: Optional[str] = os.getenv("MONGODB_URL")
     
     # Email Settings
@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     SMTP_HOST: Optional[str] = os.getenv("SMTP_HOST")
     SMTP_USER: Optional[str] = os.getenv("SMTP_USER")
     SMTP_PASSWORD: Optional[str] = os.getenv("SMTP_PASSWORD")
-    EMAILS_FROM_EMAIL: Optional[EmailStr] = os.getenv("EMAILS_FROM_EMAIL")
+    EMAILS_FROM_EMAIL: Optional[str] = os.getenv("EMAILS_FROM_EMAIL")
     EMAILS_FROM_NAME: Optional[str] = os.getenv("EMAILS_FROM_NAME", "News Feed Analyzer")
     
     # ScrapeGraph AI
@@ -53,7 +53,17 @@ class Settings(BaseSettings):
     
     @field_validator("RSS_SOURCES", mode="before")
     def assemble_rss_sources(cls, v: Union[str, List[str]]) -> List[str]:
-        if isinstance(v, str) and not v.startswith("["):
+        if not v:
+            return []
+        if isinstance(v, str):
+            # Check if the string is already a JSON array
+            if v.startswith("[") and v.endswith("]"):
+                try:
+                    import json
+                    return json.loads(v)
+                except:
+                    pass
+            # Otherwise, split by comma
             return [i.strip() for i in v.split(",")]
         elif isinstance(v, list):
             return v
@@ -64,12 +74,10 @@ class Settings(BaseSettings):
     REDIS_PORT: int = int(os.getenv("REDIS_PORT", "6379"))
     
     # Celery
-    CELERY_BROKER_URL: str = os.getenv("CELERY_BROKER_URL", f"redis://{REDIS_HOST}:{REDIS_PORT}/0")
-    CELERY_RESULT_BACKEND: str = os.getenv("CELERY_RESULT_BACKEND", f"redis://{REDIS_HOST}:{REDIS_PORT}/0")
+    CELERY_BROKER_URL: str = os.getenv("CELERY_BROKER_URL", f"redis://localhost:6379/0")
+    CELERY_RESULT_BACKEND: str = os.getenv("CELERY_RESULT_BACKEND", f"redis://localhost:6379/0")
 
-    model_config = {
-        "case_sensitive": True
-    }
+    model_config = SettingsConfigDict(case_sensitive=True, env_file=".env")
 
 
 settings = Settings()
