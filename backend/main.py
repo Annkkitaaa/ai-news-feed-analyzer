@@ -13,10 +13,11 @@ def create_application() -> FastAPI:
     )
 
     # Set CORS middleware
-    if settings.BACKEND_CORS_ORIGINS:
+    origins = settings.BACKEND_CORS_ORIGINS
+    if origins:
         application.add_middleware(
             CORSMiddleware,
-            allow_origins=[str(origin) for origin in settings.BACKEND_CORS_ORIGINS],
+            allow_origins=origins,
             allow_credentials=True,
             allow_methods=["*"],
             allow_headers=["*"],
@@ -31,6 +32,10 @@ def create_application() -> FastAPI:
     application.include_router(news.router, prefix=settings.API_V1_STR)
     application.include_router(profiles.router, prefix=settings.API_V1_STR)
     application.include_router(subscriptions.router, prefix=settings.API_V1_STR)
+
+    @application.get("/")
+    def root():
+        return {"message": f"Welcome to {settings.PROJECT_NAME} API. Visit /docs for documentation."}
 
     return application
 
