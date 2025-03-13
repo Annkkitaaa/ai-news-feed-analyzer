@@ -1,21 +1,5 @@
 import { create } from 'zustand';
-import api from '../services/api';
-import axios from 'axios';
-
-// Helper function to handle login with form data
-const loginApi = async (email, password) => {
-  const formData = new URLSearchParams();
-  formData.append('username', email); // FastAPI OAuth2 expects 'username', not 'email'
-  formData.append('password', password);
-  
-  const response = await axios.post(`${api.defaults.baseURL}/auth/login`, formData, {
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-  });
-  
-  return response;
-};
+import api, { loginApi, initializeAuthHeaders } from '../services/api';
 
 export const useAuthStore = create((set, get) => ({
   user: null,
@@ -23,50 +7,76 @@ export const useAuthStore = create((set, get) => ({
   loading: false,
   error: null,
   
+  // Initialize auth state on store creation
+  init: async () => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      set({ isAuthenticated: false, user: null });
+      return false;
+    }
+    
+    set({ isAuthenticated: true, loading: true });
+    initializeAuthHeaders();
+    
+    try {
+      const response = await api.get('/auth/me');
+      set({ 
+        user: response.data, 
+        loading: false 
+      });
+      return true;
+    } catch (error) {
+      // Token is invalid
+      localStorage.removeItem('token');
+      delete api.defaults.headers.common['Authorization'];
+      set({ 
+        isAuthenticated: false, 
+        user: null, 
+        loading: false 
+      });
+      return false;
+    }
+  },
+  
   login: async (email, password) => {
     set({ loading: true, error: null });
     try {
-      // Use the special loginApi function that formats data correctly
+      // Use the special loginApi function
       const response = await loginApi(email, password);
       
-      // Store the token - make sure we're using the correct property name from API response
+      // Store the token and set auth state
       const token = response.data.access_token;
-      localStorage.setItem('token', token);
+      if (!token) {
+        throw new Error("No token received");
+      }
       
-      console.log("Token received:", token); // For debugging
+      // Set authenticated immediately to prevent redirects
+      set({ isAuthenticated: true });
       
-      // Fetch the user data with the token explicitly included
+      // Try to fetch user data
       try {
-        const userResponse = await api.get('/auth/me', {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        
+        const userResponse = await api.get('/auth/me');
         set({ 
           user: userResponse.data, 
-          isAuthenticated: true, 
           loading: false 
         });
       } catch (userError) {
         console.error("Error fetching user data:", userError);
-        // If fetching user fails, still authenticate with token
-        set({ 
-          isAuthenticated: true, 
-          loading: false 
-        });
+        // Still keep authenticated since we have a token
+        set({ loading: false });
       }
       
       return response.data;
     } catch (error) {
-      // Better error handling to prevent React rendering objects
-      const errorMessage = typeof error.response?.data === 'object' && error.response?.data?.detail 
-        ? error.response.data.detail 
-        : 'Login failed. Please check your credentials.';
+      const errorMessage = 
+        typeof error.response?.data === 'object' && error.response?.data?.detail 
+          ? error.response.data.detail 
+          : 'Login failed. Please check your credentials.';
       
       set({ 
         error: errorMessage, 
-        loading: false 
+        loading: false,
+        isAuthenticated: false
       });
       throw error;
     }
@@ -74,6 +84,7 @@ export const useAuthStore = create((set, get) => ({
   
   logout: () => {
     localStorage.removeItem('token');
+    delete api.defaults.headers.common['Authorization'];
     set({ user: null, isAuthenticated: false });
   },
   
@@ -117,6 +128,7 @@ export const useAuthStore = create((set, get) => ({
       // Handle token expiration
       if (error.response?.status === 401) {
         localStorage.removeItem('token');
+        delete api.defaults.headers.common['Authorization'];
         set({ 
           user: null, 
           isAuthenticated: false, 
@@ -148,7 +160,6 @@ export const useAuthStore = create((set, get) => ({
       });
       return response.data;
     } catch (error) {
-      // Safe error handling for display
       const errorMessage = typeof error.response?.data === 'object' && error.response?.data?.detail 
         ? error.response.data.detail 
         : 'Failed to update profile';
@@ -168,7 +179,6 @@ export const useAuthStore = create((set, get) => ({
       set({ loading: false });
       return response.data;
     } catch (error) {
-      // Safe error handling for display
       const errorMessage = typeof error.response?.data === 'object' && error.response?.data?.detail 
         ? error.response.data.detail 
         : 'Failed to process forgot password request';
@@ -191,7 +201,6 @@ export const useAuthStore = create((set, get) => ({
       set({ loading: false });
       return response.data;
     } catch (error) {
-      // Safe error handling for display
       const errorMessage = typeof error.response?.data === 'object' && error.response?.data?.detail 
         ? error.response.data.detail 
         : 'Failed to reset password';
