@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Get API base URL from environment variable
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api/v1';
 
 // Create axios instance
 const api = axios.create({
@@ -10,6 +10,19 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
 });
+
+// Special function for login that uses form data instead of JSON
+export const loginApi = async (email, password) => {
+  const formData = new URLSearchParams();
+  formData.append('username', email); // NOTE: FastAPI OAuth2 expects 'username', not 'email'
+  formData.append('password', password);
+  
+  return axios.post(`${API_BASE_URL}/auth/login`, formData, {
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+  });
+};
 
 // Add request interceptor to include auth token
 api.interceptors.request.use(
