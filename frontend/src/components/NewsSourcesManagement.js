@@ -378,9 +378,6 @@ export const NewsSourcesManagement = () => {
                     <div className="flex items-center text-xs text-gray-500 mt-1">
                       {getSourceTypeIcon(source.source_type)}
                       <span className="ml-1">{getSourceTypeName(source.source_type)}</span>
-                      <div className="flex items-center text-xs text-gray-500 mt-1">
-                      {getSourceTypeIcon(source.source_type)}
-                      <span className="ml-1">{getSourceTypeName(source.source_type)}</span>
                     </div>
                   </div>
                   <button
