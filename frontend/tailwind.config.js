@@ -1,3 +1,4 @@
+/** @type {import('tailwindcss').Config} */
 module.exports = {
   content: ['./src/**/*.{js,jsx,ts,tsx}', './public/index.html'],
   darkMode: 'class', // Enable dark mode
@@ -81,16 +82,10 @@ module.exports = {
           '100%': { transform: 'translateY(0)', opacity: '1' },
         },
       },
-      backdropFilter: {
-        'none': 'none',
-        'blur': 'blur(20px)',
-      },
     },
   },
   plugins: [
     require('@tailwindcss/forms'),
     require('@tailwindcss/typography'),
-    // Using empty array to remove dependency on external plugins
-    // Line clamp is now part of Tailwind core in v3.3+
   ],
 }
