@@ -147,6 +147,7 @@ export const NewsDetail = () => {
           <div className="text-center py-8">
             <p className="text-light-800 dark:text-light-500 mb-4">Full content not available in preview.</p>
             
+            <a
               href={currentNews.url}
               target="_blank"
               rel="noopener noreferrer"
@@ -164,7 +165,7 @@ export const NewsDetail = () => {
           <span>Reading time: ~{Math.ceil((currentNews.content?.length || 0) / 1000)} min</span>
         </div>
         
-        
+        <a
           href={currentNews.url}
           target="_blank"
           rel="noopener noreferrer"
