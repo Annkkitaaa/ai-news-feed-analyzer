@@ -31,14 +31,6 @@ export const useNewsStore = create((set, get) => ({
   fetchTrendingFeed: async (category = null) => {
     set({ loading: true, error: null });
     try {
-      // Ensure token is set
-      const token = localStorage.getItem('token');
-      if (!token) {
-        console.warn("No token available for fetchTrendingFeed");
-        set({ loading: false, error: "Authentication required" });
-        return [];
-      }
-      
       const url = category 
         ? `/news/trending/feed?category=${encodeURIComponent(category)}`
         : '/news/trending/feed';
@@ -61,14 +53,6 @@ export const useNewsStore = create((set, get) => ({
   fetchCategories: async () => {
     set({ loading: true, error: null });
     try {
-      // Ensure token is set
-      const token = localStorage.getItem('token');
-      if (!token) {
-        console.warn("No token available for fetchCategories");
-        set({ loading: false, error: "Authentication required" });
-        return [];
-      }
-      
       const response = await api.get('/news/categories/list');
       set({ categories: response.data, loading: false });
       return response.data;
