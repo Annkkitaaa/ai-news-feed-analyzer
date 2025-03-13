@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ timeframe|capitalize }} News Digest</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: #4338ca;
+        }
+        .date {
+            color: #666;
+            font-size: 14px;
+        }
+        .section {
+            margin-bottom: 30px;
+        }
+        .section-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #eee;
+            color: #4338ca;
+        }
+        .article {
+            margin-bottom: 15px;
+        }
+        .article-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .article-summary {
+            font-size: 14px;
+            color: #555;
+            margin-bottom: 5px;
+        }
+        .article-link {
+            font-size: 12px;
+            color: #4338ca;
+            text-decoration: none;
+        }
+        .footer {
+            margin-top: 30px;
+            font-size: 12px;
+            color: #999;
+            text-align: center;
+            border-top: 1px solid #eee;
+            padding-top: 20px;
+        }
+        .unsubscribe {
+            color: #999;
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">NewsFlow</div>
+        <div class="date">{{ date }}</div>
+        <p>Hello{% if user_name %} {{ user_name }}{% endif %},</p>
+        <p>Here is your {{ timeframe }} news digest based on your interests.</p>
+    </div>
+
+    {% for interest_name, interest_data in interests.items() %}
+    <div class="section">
+        <div class="section-title">{{ interest_name }}</div>
+        <p>{{ interest_data.summary }}</p>
+        
+        {% for article in interest_data.articles %}
+        <div class="article">
+            <div class="article-title">{{ article.title }}</div>
+            <div class="article-summary">{{ article.summary[:150] }}...</div>
+            <a class="article-link" href="{{ article.url }}" target="_blank">Read full article</a>
+        </div>
+        {% endfor %}
+    </div>
+    {% endfor %}
+
+    <div class="footer">
+        <p>This digest was generated based on your interests. To update your preferences, visit your profile settings.</p>
+        <p>
+            <a href="{{ unsubscribe_url }}" class="unsubscribe">Unsubscribe</a> from these emails.
+        </p>
+        <p>&copy; {{ date[:4] }} NewsFlow AI. All rights reserved.</p>
+    </div>
+</body>
+</html>
