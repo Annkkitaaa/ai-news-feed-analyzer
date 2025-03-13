@@ -29,7 +29,13 @@ export const Login = () => {
       toast.success('Login successful!');
       navigate('/dashboard');
     } catch (error) {
-      toast.error(error.response?.data?.detail || 'Login failed');
+      // Safe error handling - ensures we only display strings
+      const errorMessage = 
+        typeof error === 'string' ? error :
+        typeof error.response?.data?.detail === 'string' ? error.response.data.detail :
+        'Login failed. Please check your credentials.';
+      
+      toast.error(errorMessage);
     } finally {
       setSubmitting(false);
     }
@@ -140,7 +146,7 @@ export const Login = () => {
                 
                 {error && (
                   <div className="bg-red-50 dark:bg-red-900/20 text-red-500 text-center text-sm p-3 rounded-lg mt-2">
-                    {error}
+                    {typeof error === 'object' ? 'Authentication failed. Please try again.' : error}
                   </div>
                 )}
               </Form>
@@ -196,7 +202,13 @@ export const Register = () => {
       toast.success('Registration successful! Please login.');
       navigate('/login');
     } catch (error) {
-      toast.error(error.response?.data?.detail || 'Registration failed');
+      // Safe error handling
+      const errorMessage = 
+        typeof error === 'string' ? error :
+        typeof error.response?.data?.detail === 'string' ? error.response.data.detail :
+        'Registration failed. Please try again.';
+      
+      toast.error(errorMessage);
     } finally {
       setSubmitting(false);
     }
@@ -345,7 +357,7 @@ export const Register = () => {
                 
                 {error && (
                   <div className="bg-red-50 dark:bg-red-900/20 text-red-500 text-center text-sm p-3 rounded-lg mt-2">
-                    {error}
+                    {typeof error === 'object' ? 'Registration failed. Please try again.' : error}
                   </div>
                 )}
               </Form>
@@ -386,7 +398,13 @@ export const ForgotPassword = () => {
       await forgotPassword(values.email);
       setIsSubmitted(true);
     } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to process request');
+      // Safe error handling
+      const errorMessage = 
+        typeof error === 'string' ? error :
+        typeof error.response?.data?.detail === 'string' ? error.response.data.detail :
+        'Failed to process request. Please try again.';
+      
+      toast.error(errorMessage);
     } finally {
       setSubmitting(false);
     }
@@ -485,7 +503,7 @@ export const ForgotPassword = () => {
                   
                   {error && (
                     <div className="bg-red-50 dark:bg-red-900/20 text-red-500 text-center text-sm p-3 rounded-lg mt-2">
-                      {error}
+                      {typeof error === 'object' ? 'Failed to send reset instructions. Please try again.' : error}
                     </div>
                   )}
                 </Form>
@@ -538,7 +556,13 @@ export const ResetPassword = () => {
       await resetPassword(token, values.password);
       setIsSuccess(true);
     } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to reset password');
+      // Safe error handling
+      const errorMessage = 
+        typeof error === 'string' ? error :
+        typeof error.response?.data?.detail === 'string' ? error.response.data.detail :
+        'Failed to reset password. Please try again.';
+      
+      toast.error(errorMessage);
     } finally {
       setSubmitting(false);
     }
@@ -613,62 +637,63 @@ export const ResetPassword = () => {
                       name="password"
                       component="div"
                       className="text-red-500 text-xs mt-1"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label htmlFor="confirmPassword" className="block text-sm font-medium text-light-900 dark:text-light-300 mb-1">
-                      Confirm New Password
-                    </label>
-                    <Field
-                      id="confirmPassword"
-                      name="confirmPassword"
-                      type="password"
-                      className="input"
-                      placeholder="Confirm new password"
-                    />
-                    <ErrorMessage
-                      name="confirmPassword"
-                      component="div"
-                      className="text-red-500 text-xs mt-1"
-                    />
-                  </div>
-                  
-                  <div>
-                    <button
-                      type="submit"
-                      disabled={isSubmitting || loading || !token}
-                      className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-base font-medium text-white bg-gradient-to-r from-primary-600 to-secondary-600 hover:from-primary-700 hover:to-secondary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-all duration-200 disabled:opacity-50"
-                    >
-                      {loading ? (
-                        <span className="flex items-center">
-                          <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                          </svg>
-                          Resetting Password...
-                        </span>
-                      ) : 'Reset Password'}
-                    </button>
-                  </div>
-                  
-                  {error && (
-                    <div className="bg-red-50 dark:bg-red-900/20 text-red-500 text-center text-sm p-3 rounded-lg mt-2">
-                      {error}
-                    </div>
-                  )}
-                  
-                  {!token && (
-                    <div className="bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-500 text-center text-sm p-3 rounded-lg mt-2">
-                      Invalid or missing reset token. Please check your reset link.
-                    </div>
-                  )}
-                </Form>
-              )}
-            </Formik>
-          )}
-        </div>
-      </div>
-    </div>
-  );
+                   />
+                 </div>
+                 
+                 <div>
+                   <label htmlFor="confirmPassword" className="block text-sm font-medium text-light-900 dark:text-light-300 mb-1">
+                     Confirm New Password
+                   </label>
+                   <Field
+                     id="confirmPassword"
+                     name="confirmPassword"
+                     type="password"
+                     className="input"
+                     placeholder="Confirm new password"
+                   />
+                   <ErrorMessage
+                     name="confirmPassword"
+                     component="div"
+                     className="text-red-500 text-xs mt-1"
+                   />
+                 </div>
+                 
+                 <div>
+                   <button
+                     type="submit"
+                     disabled={isSubmitting || loading || !token}
+                     className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-base font-medium text-white bg-gradient-to-r from-primary-600 to-secondary-600 hover:from-primary-700 hover:to-secondary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-all duration-200 disabled:opacity-50"
+                   >
+                     {loading ? (
+                       <span className="flex items-center">
+                         <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                         </svg>
+                         Resetting Password...
+                       </span>
+                     ) : 'Reset Password'}
+                   </button>
+                 </div>
+                 
+                 {error && (
+                   <div className="bg-red-50 dark:bg-red-900/20 text-red-500 text-center text-sm p-3 rounded-lg mt-2">
+                     {typeof error === 'object' ? 'Failed to reset password. Please try again.' : error}
+                   </div>
+                 )}
+                 
+                 {!token && (
+                   <div className="bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-500 text-center text-sm p-3 rounded-lg mt-2">
+                     Invalid or missing reset token. Please check your reset link.
+                   </div>
+                 )}
+               </Form>
+             )}
+           </Formik>
+         )}
+       </div>
+     </div>
+   </div>
+ );
 };
+                      
