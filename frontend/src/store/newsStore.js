@@ -13,14 +13,6 @@ export const useNewsStore = create((set, get) => ({
   fetchPersonalizedFeed: async () => {
     set({ loading: true, error: null });
     try {
-      // Ensure token is set
-      const token = localStorage.getItem('token');
-      if (!token) {
-        console.warn("No token available for fetchPersonalizedFeed");
-        set({ loading: false, error: "Authentication required" });
-        return [];
-      }
-      
       const response = await api.get('/news/personalized/feed');
       set({ personalizedFeed: response.data, loading: false });
       return response.data;
