@@ -1,6 +1,7 @@
 import os
 from typing import List, Union, Dict, Any, Optional
-from pydantic import BaseSettings, AnyHttpUrl, validator, EmailStr, PostgresDsn, field_validator
+from pydantic import AnyHttpUrl, EmailStr, PostgresDsn, field_validator
+from pydantic_settings import BaseSettings
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -66,8 +67,9 @@ class Settings(BaseSettings):
     CELERY_BROKER_URL: str = os.getenv("CELERY_BROKER_URL", f"redis://{REDIS_HOST}:{REDIS_PORT}/0")
     CELERY_RESULT_BACKEND: str = os.getenv("CELERY_RESULT_BACKEND", f"redis://{REDIS_HOST}:{REDIS_PORT}/0")
 
-    class Config:
-        case_sensitive = True
+    model_config = {
+        "case_sensitive": True
+    }
 
 
 settings = Settings()
