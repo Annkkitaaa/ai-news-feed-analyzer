@@ -4,8 +4,6 @@ from celery.schedules import crontab
 
 from app.core.config import settings
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'app.settings')
-
 celery_app = Celery("news_feed_analyzer")
 celery_app.conf.broker_url = settings.CELERY_BROKER_URL
 celery_app.conf.result_backend = settings.CELERY_RESULT_BACKEND
@@ -40,7 +38,6 @@ celery_app.conf.beat_schedule = {
         "schedule": crontab(hour=3, minute=0),  # Run at 3 AM UTC
     },
 }
-
 
 if __name__ == "__main__":
     celery_app.start()
