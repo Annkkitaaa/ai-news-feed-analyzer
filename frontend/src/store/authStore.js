@@ -11,15 +11,18 @@ export const useAuthStore = create((set, get) => ({
   init: async () => {
     const token = localStorage.getItem('token');
     if (!token) {
+      console.log('No token found in localStorage, not authenticated');
       set({ isAuthenticated: false, user: null });
       return false;
     }
     
+    console.log('Token found in localStorage, attempting to validate');
     set({ isAuthenticated: true, loading: true });
     initializeAuthHeaders();
     
     try {
-      const response = await api.get('/auth/me');
+      const response = await api.get('/me');
+      console.log('Successfully fetched user data');
       set({ 
         user: response.data, 
         loading: false 
@@ -27,6 +30,7 @@ export const useAuthStore = create((set, get) => ({
       return true;
     } catch (error) {
       // Token is invalid
+      console.error('Error validating token:', error.response?.status, error.message);
       localStorage.removeItem('token');
       delete api.defaults.headers.common['Authorization'];
       set({ 
@@ -41,6 +45,7 @@ export const useAuthStore = create((set, get) => ({
   login: async (email, password) => {
     set({ loading: true, error: null });
     try {
+      console.log('Attempting login for:', email);
       // Use the special loginApi function
       const response = await loginApi(email, password);
       
@@ -50,24 +55,28 @@ export const useAuthStore = create((set, get) => ({
         throw new Error("No token received");
       }
       
+      console.log('Login successful, token received');
       // Set authenticated immediately to prevent redirects
       set({ isAuthenticated: true });
       
       // Try to fetch user data
       try {
-        const userResponse = await api.get('/auth/me');
+        console.log('Fetching user data after login');
+        const userResponse = await api.get('/me');
         set({ 
           user: userResponse.data, 
           loading: false 
         });
+        console.log('User data fetched successfully');
       } catch (userError) {
-        console.error("Error fetching user data:", userError);
+        console.error("Error fetching user data:", userError.response?.status, userError.message);
         // Still keep authenticated since we have a token
         set({ loading: false });
       }
       
       return response.data;
     } catch (error) {
+      console.error('Login failed:', error.response?.status, error.message);
       const errorMessage = 
         typeof error.response?.data === 'object' && error.response?.data?.detail 
           ? error.response.data.detail 
@@ -83,6 +92,7 @@ export const useAuthStore = create((set, get) => ({
   },
   
   logout: () => {
+    console.log('Logging out, removing token');
     localStorage.removeItem('token');
     delete api.defaults.headers.common['Authorization'];
     set({ user: null, isAuthenticated: false });
@@ -91,7 +101,7 @@ export const useAuthStore = create((set, get) => ({
   register: async (userData) => {
     set({ loading: true, error: null });
     try {
-      const response = await api.post('/auth/register', userData);
+      const response = await api.post('/register', userData);
       set({ loading: false });
       return response.data;
     } catch (error) {
@@ -111,13 +121,16 @@ export const useAuthStore = create((set, get) => ({
   fetchCurrentUser: async () => {
     const token = localStorage.getItem('token');
     if (!token) {
+      console.log('fetchCurrentUser: No token found');
       set({ user: null, isAuthenticated: false });
       return null;
     }
     
     set({ loading: true, error: null });
     try {
-      const response = await api.get('/auth/me');
+      console.log('fetchCurrentUser: Getting user data');
+      const response = await api.get('/me');
+      console.log('fetchCurrentUser: Successfully got user data');
       set({ 
         user: response.data, 
         isAuthenticated: true, 
@@ -125,6 +138,7 @@ export const useAuthStore = create((set, get) => ({
       });
       return response.data;
     } catch (error) {
+      console.error('fetchCurrentUser error:', error.response?.status, error.message);
       // Handle token expiration
       if (error.response?.status === 401) {
         localStorage.removeItem('token');
@@ -153,7 +167,7 @@ export const useAuthStore = create((set, get) => ({
   updateProfile: async (profileData) => {
     set({ loading: true, error: null });
     try {
-      const response = await api.put('/auth/me', profileData);
+      const response = await api.put('/me', profileData);
       set({ 
         user: response.data, 
         loading: false 
@@ -175,7 +189,7 @@ export const useAuthStore = create((set, get) => ({
   forgotPassword: async (email) => {
     set({ loading: true, error: null });
     try {
-      const response = await api.post('/auth/reset-password', { email });
+      const response = await api.post('/reset-password', { email });
       set({ loading: false });
       return response.data;
     } catch (error) {
@@ -194,7 +208,7 @@ export const useAuthStore = create((set, get) => ({
   resetPassword: async (token, new_password) => {
     set({ loading: true, error: null });
     try {
-      const response = await api.post('/auth/reset-password-confirm', { 
+      const response = await api.post('/reset-password-confirm', { 
         token, 
         new_password 
       });
