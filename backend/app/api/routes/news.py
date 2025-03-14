@@ -260,3 +260,8 @@ def get_categories(
     """Get all available news categories."""
     categories = db.query(Category).all()
     return categories
+
+@router.get("/test-digest")
+def test_digest_endpoint():
+    """Test endpoint to verify routing"""
+    return {"status": "ok", "message": "Digest endpoint exists"}
