@@ -54,7 +54,21 @@ class TrendAnalysis(BaseModel):
     generated_at: datetime = datetime.utcnow()
 
 
-# Routes
+# Routes - SPECIFIC ROUTES FIRST
+# =============================
+
+# Test routes without authentication
+@router.get("/test-digest")
+def get_test_digest():
+    """Completely open test endpoint with no auth required"""
+    return {
+        "timestamp": datetime.utcnow().isoformat(),
+        "timeframe": "daily",
+        "overview": {"test": "This is a test digest endpoint with no auth"},
+        "top_stories": []
+    }
+
+# Root route for news listing
 @router.get("/", response_model=List[NewsInDB])
 def get_news(
     *,
@@ -110,30 +124,15 @@ def get_news(
     
     return news_items
 
-@router.get("/{news_id}", response_model=NewsInDB)
-def get_news_by_id(
+# Static path routes without path parameters
+@router.get("/categories/list", response_model=List[CategoryInDB])
+def get_categories(
     *,
     db: Session = Depends(get_db),
-    news_id: str,
-    current_user: User = Depends(get_current_user),
 ) -> Any:
-    """Get a specific news article by ID."""
-    news = db.query(News).filter(News.id == news_id).first()
-    if not news:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="News article not found",
-        )
-    
-    # Record read history
-    read_history = ReadHistory(
-        user_id=current_user.id,
-        news_id=news.id
-    )
-    db.add(read_history)
-    db.commit()
-    
-    return news
+    """Get all available news categories."""
+    categories = db.query(Category).all()
+    return categories
 
 @router.get("/personalized/feed", response_model=List[NewsInDB])
 def get_personalized_feed(
@@ -159,7 +158,23 @@ def get_trending_feed(
     trending_news = analyzer.get_trending_news(category=category, limit=limit)
     return trending_news
 
-# Update the existing digest endpoint in app/api/routes/news.py
+@router.get("/trends/analysis", response_model=TrendAnalysis)
+def get_trend_analysis(
+    *,
+    db: Session = Depends(get_db),
+    days: int = Query(7, ge=1, le=30),
+    category: Optional[str] = None,
+) -> Any:
+    """Get an analysis of news trends."""
+    summarizer = NewsSummarizer(db)
+    analysis = summarizer.generate_trend_analysis(days, category)
+    
+    return {
+        "category": category,
+        "days": days,
+        "analysis": analysis,
+        "generated_at": datetime.utcnow()
+    }
 
 @router.get("/digest")
 def get_news_digest(
@@ -199,23 +214,92 @@ def get_news_digest(
             "top_stories": []
         }
 
-@router.get("/trends/analysis", response_model=TrendAnalysis)
-def get_trend_analysis(
+@router.get("/minimal-digest")
+def get_minimal_digest(
+    timeframe: str = "daily",
+    current_user: User = Depends(get_current_user),
+):
+    """Minimal version of digest endpoint"""
+    print(f"Minimal digest called with timeframe: {timeframe}")
+    print(f"User: {current_user.email}")
+    
+    # Return a very basic response
+    return {
+        "timestamp": datetime.utcnow().isoformat(),
+        "timeframe": timeframe,
+        "overview": {"test": "This is a minimal test digest"},
+        "top_stories": [
+            {
+                "id": "1",
+                "title": "Test Story",
+                "summary": "This is a test summary",
+                "url": "https://example.com",
+                "source": "Test",
+                "published_at": datetime.utcnow().isoformat()
+            }
+        ]
+    }
+
+@router.get("/simplified-digest")
+def simplified_digest(
+    timeframe: str = "daily",
+    current_user: User = Depends(get_current_user),
+):
+    """Simplified version of digest endpoint for debugging"""
+    try:
+        # Return a minimal valid digest
+        return {
+            "timestamp": datetime.utcnow().isoformat(),
+            "timeframe": timeframe,
+            "overview": {"test": "This is a test digest"},
+            "top_stories": [
+                {
+                    "id": "1", 
+                    "title": "Test Story", 
+                    "summary": "This is a test summary",
+                    "url": "https://example.com/news/1",
+                    "source": "Test Source",
+                    "published_at": datetime.utcnow().isoformat()
+                }
+            ]
+        }
+    except Exception as e:
+        print(f"Error in simplified digest: {str(e)}")
+        # Return a minimal valid digest
+        return {
+            "timestamp": datetime.utcnow().isoformat(),
+            "timeframe": timeframe,
+            "overview": {"error": f"Error generating digest: {str(e)}"},
+            "top_stories": []
+        }
+
+# ROUTES WITH PATH PARAMETERS LAST
+# ================================
+
+@router.get("/{news_id}", response_model=NewsInDB)
+def get_news_by_id(
     *,
     db: Session = Depends(get_db),
-    days: int = Query(7, ge=1, le=30),
-    category: Optional[str] = None,
+    news_id: str,
+    current_user: User = Depends(get_current_user),
 ) -> Any:
-    """Get an analysis of news trends."""
-    summarizer = NewsSummarizer(db)
-    analysis = summarizer.generate_trend_analysis(days, category)
+    """Get a specific news article by ID."""
+    news = db.query(News).filter(News.id == news_id).first()
+    if not news:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="News article not found",
+        )
     
-    return {
-        "category": category,
-        "days": days,
-        "analysis": analysis,
-        "generated_at": datetime.utcnow()
-    }
+    # Record read history
+    read_history = ReadHistory(
+        user_id=current_user.id,
+        news_id=news.id
+    )
+    db.add(read_history)
+    db.commit()
+    
+    return news
 
 @router.get("/{news_id}/summary", response_model=dict)
 def get_news_summary(
@@ -268,82 +352,3 @@ def record_news_read(
     db.commit()
     
     return {"status": "success", "message": "Read history recorded"}
-
-@router.get("/categories/list", response_model=List[CategoryInDB])
-def get_categories(
-    *,
-    db: Session = Depends(get_db),
-) -> Any:
-    """Get all available news categories."""
-    categories = db.query(Category).all()
-    return categories
-
-@router.get("/test-digest", response_model=dict)
-def get_test_digest():
-    """Completely open test endpoint with no auth required"""
-    return {
-        "timestamp": datetime.utcnow().isoformat(),
-        "timeframe": "daily",
-        "overview": {"test": "This is a test digest endpoint with no auth"},
-        "top_stories": []
-    }
-
-@router.get("/minimal-digest")
-def get_minimal_digest(
-    timeframe: str = "daily",
-    current_user: User = Depends(get_current_user),
-):
-    """Minimal version of digest endpoint"""
-    print(f"Minimal digest called with timeframe: {timeframe}")
-    print(f"User: {current_user.email}")
-    
-    # Return a very basic response
-    return {
-        "timestamp": datetime.utcnow().isoformat(),
-        "timeframe": timeframe,
-        "overview": {"test": "This is a minimal test digest"},
-        "top_stories": [
-            {
-                "id": "1",
-                "title": "Test Story",
-                "summary": "This is a test summary",
-                "url": "https://example.com",
-                "source": "Test",
-                "published_at": datetime.utcnow().isoformat()
-            }
-        ]
-    }
-
-
-@router.get("/simplified-digest")
-def simplified_digest(
-    timeframe: str = "daily",
-    current_user: User = Depends(get_current_user),
-):
-    """Simplified version of digest endpoint for debugging"""
-    try:
-        # Return a minimal valid digest
-        return {
-            "timestamp": datetime.utcnow().isoformat(),
-            "timeframe": timeframe,
-            "overview": {"test": "This is a test digest"},
-            "top_stories": [
-                {
-                    "id": "1", 
-                    "title": "Test Story", 
-                    "summary": "This is a test summary",
-                    "url": "https://example.com/news/1",
-                    "source": "Test Source",
-                    "published_at": datetime.utcnow().isoformat()
-                }
-            ]
-        }
-    except Exception as e:
-        print(f"Error in simplified digest: {str(e)}")
-        # Return a minimal valid digest
-        return {
-            "timestamp": datetime.utcnow().isoformat(),
-            "timeframe": timeframe,
-            "overview": {"error": f"Error generating digest: {str(e)}"},
-            "top_stories": []
-        }
