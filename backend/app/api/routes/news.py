@@ -278,10 +278,41 @@ def get_categories(
     categories = db.query(Category).all()
     return categories
 
-@router.get("/test-digest")
-def test_digest_endpoint():
-    """Test endpoint to verify routing"""
-    return {"status": "ok", "message": "Digest endpoint exists"}
+@router.get("/test-digest", response_model=dict)
+def get_test_digest():
+    """Completely open test endpoint with no auth required"""
+    return {
+        "timestamp": datetime.utcnow().isoformat(),
+        "timeframe": "daily",
+        "overview": {"test": "This is a test digest endpoint with no auth"},
+        "top_stories": []
+    }
+
+@router.get("/minimal-digest")
+def get_minimal_digest(
+    timeframe: str = "daily",
+    current_user: User = Depends(get_current_user),
+):
+    """Minimal version of digest endpoint"""
+    print(f"Minimal digest called with timeframe: {timeframe}")
+    print(f"User: {current_user.email}")
+    
+    # Return a very basic response
+    return {
+        "timestamp": datetime.utcnow().isoformat(),
+        "timeframe": timeframe,
+        "overview": {"test": "This is a minimal test digest"},
+        "top_stories": [
+            {
+                "id": "1",
+                "title": "Test Story",
+                "summary": "This is a test summary",
+                "url": "https://example.com",
+                "source": "Test",
+                "published_at": datetime.utcnow().isoformat()
+            }
+        ]
+    }
 
 
 @router.get("/simplified-digest")
