@@ -42,7 +42,7 @@ def get_current_user(db: Session = Depends(get_db), token: str = Depends(oauth2_
     return user
 
 # Routes
-@router.post("/auth/register", response_model=UserInDB)
+@router.post("/register", response_model=UserInDB)
 def register_user(
     *,
     db: Session = Depends(get_db),
@@ -73,7 +73,7 @@ def register_user(
     
     return user
 
-@router.post("/auth/login", response_model=Token)
+@router.post("/login", response_model=Token)
 def login(
     db: Session = Depends(get_db),
     form_data: OAuth2PasswordRequestForm = Depends(),
@@ -99,7 +99,7 @@ def login(
     
     return {"access_token": access_token, "token_type": "bearer"}
 
-@router.post("/auth/reset-password", response_model=dict)
+@router.post("/reset-password", response_model=dict)
 def request_password_reset(
     reset_in: PasswordReset,
     db: Session = Depends(get_db),
@@ -126,7 +126,7 @@ def request_password_reset(
     
     return {"message": "Password reset email sent if the account exists."}
 
-@router.post("/auth/reset-password-confirm", response_model=dict)
+@router.post("/reset-password-confirm", response_model=dict)
 def confirm_password_reset(
     new_password_in: NewPassword,
     db: Session = Depends(get_db),
@@ -162,14 +162,14 @@ def confirm_password_reset(
             detail="Invalid or expired token",
         )
 
-@router.get("/auth/me", response_model=UserInDB)
+@router.get("/me", response_model=UserInDB)
 def get_current_user_info(
     current_user: User = Depends(get_current_user),
 ) -> Any:
     """Get current user info."""
     return current_user
 
-@router.put("/auth/me", response_model=UserInDB)
+@router.put("/me", response_model=UserInDB)
 def update_current_user(
     *,
     db: Session = Depends(get_db),
