@@ -17,7 +17,8 @@ export const loginApi = async (email, password) => {
   formData.append('username', email); // FastAPI OAuth2 expects 'username', not 'email'
   formData.append('password', password);
   
-  const response = await axios.post(`${API_BASE_URL}/auth/login`, formData, {
+  // Updated path: removed "auth/" prefix to match backend route
+  const response = await axios.post(`${API_BASE_URL}/login`, formData, {
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
     },
@@ -60,8 +61,8 @@ api.interceptors.response.use(
   (error) => {
     if (error.response && error.response.status === 401) {
       console.error("401 Unauthorized response from:", error.config.url);
-      // Don't clear token on auth endpoints to prevent login loops
-      if (!error.config.url.includes('/auth/login') && !error.config.url.includes('/auth/register')) {
+      // Updated paths: removed "auth/" prefix to match routes
+      if (!error.config.url.includes('/login') && !error.config.url.includes('/register')) {
         console.log("Clearing invalid token");
         localStorage.removeItem('token');
         delete api.defaults.headers.common['Authorization'];
