@@ -35,19 +35,6 @@ def get_current_user(db: Session = Depends(get_db), token: str = Depends(oauth2_
         print(f"Decoded payload: {payload}")
         
         user_id = payload.get("sub")
-        
-        # Handle case where sub might be a string representation of a dict
-        if user_id and isinstance(user_id, str) and user_id.startswith("{"):
-            try:
-                # Try to parse it as JSON
-                import json
-                user_dict = json.loads(user_id.replace("'", "\""))
-                if isinstance(user_dict, dict) and 'sub' in user_dict:
-                    user_id = user_dict['sub']
-            except:
-                # If parsing fails, continue with the original user_id
-                pass
-                
         if user_id is None:
             raise credentials_exception
             
