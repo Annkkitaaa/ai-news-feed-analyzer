@@ -17,35 +17,33 @@ def create_application() -> FastAPI:
         openapi_url=f"{settings.API_V1_STR}/openapi.json",
     )
     
-    # Set CORS middleware with explicit origins
-    # Make sure these match your frontend URLs exactly
+    # Set CORS middleware
     origins = [
-        "http://localhost:3000",  # React default
+        "http://localhost:3000",
         "http://127.0.0.1:3000",
-        "http://localhost:8000",  # Backend for dev convenience
+        "http://localhost:8000",
         "http://127.0.0.1:8000",
     ]
     
-    # Add any additional origins from settings
+    # Add origins from settings
     if settings.BACKEND_CORS_ORIGINS:
-        origins.extend([str(origin) for origin in settings.BACKEND_CORS_ORIGINS])
+        for origin in settings.BACKEND_CORS_ORIGINS:
+            if origin not in origins:
+                origins.append(str(origin))
     
-    # Apply middleware with explicit configuration
     application.add_middleware(
         CORSMiddleware,
         allow_origins=origins,
         allow_credentials=True,
-        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-        allow_headers=["Content-Type", "Authorization", "Accept", "X-Requested-With"],
-        expose_headers=["Content-Length"],
-        max_age=600,  # Cache preflight requests for 10 minutes
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
     
     # Set up event handlers
     application.add_event_handler("startup", create_start_app_handler(application))
     application.add_event_handler("shutdown", create_stop_app_handler(application))
     
-    # Include API routes with correct prefixes
+    # Include API routes
     application.include_router(auth.router, prefix=f"{settings.API_V1_STR}")
     application.include_router(news.router, prefix=f"{settings.API_V1_STR}")
     application.include_router(profiles.router, prefix=f"{settings.API_V1_STR}")
@@ -59,10 +57,21 @@ def create_application() -> FastAPI:
     def health_check():
         return {"status": "ok"}
     
-    # Add an endpoint to test CORS
     @application.get("/test-cors")
     def test_cors():
         return {"cors_test": "successful"}
+    
+    @application.get("/debug/routes")
+    def debug_routes():
+        """List all registered routes for debugging"""
+        routes = []
+        for route in application.routes:
+            routes.append({
+                "path": route.path,
+                "name": route.name,
+                "methods": route.methods if hasattr(route, "methods") else None
+            })
+        return {"routes": routes}
     
     return application
 
