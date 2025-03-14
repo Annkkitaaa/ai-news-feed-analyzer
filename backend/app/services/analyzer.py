@@ -45,39 +45,50 @@ class NewsAnalyzer:
 
     def _initialize_llm(self):
         """Initialize the right LLM based on settings."""
-        if settings.LLM_TYPE == "openai":
-            return OpenAI(
-                temperature=0.1,
-                model_name="gpt-3.5-turbo-instruct",
-                openai_api_key=settings.LLM_API_KEY
-            )
-        else:  # Default to huggingface
+        if settings.LLM_TYPE == "openai" and settings.LLM_API_KEY:
             try:
-                # Initialize pipeline for summarization and text generation
-                pipe = pipeline(
-                    "text-generation",
-                    model=settings.LLM_MODEL_ID,
-                    max_length=2048,
+                return OpenAI(
                     temperature=0.1,
-                    top_p=0.95,
-                    repetition_penalty=1.15
+                    model_name="gpt-3.5-turbo-instruct",
+                    openai_api_key=settings.LLM_API_KEY
                 )
-                
-                return HuggingFacePipeline(pipeline=pipe)
             except Exception as e:
-                logger.error(f"Error initializing HuggingFace model: {e}")
-                # Default to a smaller model as fallback
+                logger.error(f"Error initializing OpenAI model: {e}")
+                # Fall back to HuggingFace
+        
+        # Default to huggingface
+        try:
+            # Use a smaller model that doesn't require authentication
+            model_id = "distilgpt2"  # Default to smaller model
+            
+            # Try the specified model if available
+            if settings.LLM_MODEL_ID:
                 try:
                     pipe = pipeline(
                         "text-generation",
-                        model="distilgpt2",
-                        max_length=1024,
-                        temperature=0.1
+                        model=settings.LLM_MODEL_ID,
+                        max_length=2048,
+                        temperature=0.1,
+                        top_p=0.95,
+                        repetition_penalty=1.15
                     )
                     return HuggingFacePipeline(pipeline=pipe)
-                except Exception as e2:
-                    logger.error(f"Error initializing fallback model: {e2}")
-                    return None
+                except Exception as model_error:
+                    logger.error(f"Error loading specified model: {model_error}. Falling back to {model_id}")
+            
+            # Fall back to smaller model
+            logger.info(f"Using fallback model: {model_id}")
+            pipe = pipeline(
+                "text-generation",
+                model=model_id,
+                max_length=1024,
+                temperature=0.1
+            )
+            return HuggingFacePipeline(pipeline=pipe)
+        except Exception as e:
+            logger.error(f"Error initializing HuggingFace model: {e}")
+            # Return a dummy LLM that returns a generic response
+            return None
 
     def _initialize_embedding_model(self):
         """Initialize the embedding model."""
@@ -88,6 +99,11 @@ class NewsAnalyzer:
         except Exception as e:
             logger.error(f"Error initializing embedding model: {e}")
             return None
+
+    # Add a method to check if LLM and embedding models are available
+    def models_available(self):
+        """Check if both LLM and embedding models are available."""
+        return self.llm is not None and self.embedding_model is not None
 
     def categorize_news(self, news_ids: List[str]) -> Dict[str, List[str]]:
         """Categorize news articles into predefined categories."""
