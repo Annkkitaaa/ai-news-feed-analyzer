@@ -10,7 +10,7 @@ from app.core.config import settings
 from app.schemas.auth import TokenPayload  # Import from schemas instead
 
 oauth2_scheme = OAuth2PasswordBearer(
-    tokenUrl=f"{settings.API_V1_STR}/auth/login"
+    tokenUrl=f"{settings.API_V1_STR}/login"
 )
 
 def get_current_user_token_data(token: str = Depends(oauth2_scheme)) -> TokenPayload:
