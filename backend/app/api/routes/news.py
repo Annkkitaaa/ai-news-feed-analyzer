@@ -272,6 +272,62 @@ def simplified_digest(
             "overview": {"error": f"Error generating digest: {str(e)}"},
             "top_stories": []
         }
+    
+@router.post("/fetch", response_model=dict)
+async def manual_fetch_news(
+    *,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Any:
+    """Manually trigger fetching news from all sources."""
+    try:
+        print(f"Manual news fetch triggered by user: {current_user.email}")
+        
+        # Initialize the aggregator
+        aggregator = NewsAggregator(db)
+        
+        # Fetch news asynchronously
+        articles = await aggregator.fetch_all_sources()
+        print(f"Fetched {len(articles)} articles")
+        
+        # Save the articles
+        saved_articles = aggregator.save_articles(articles)
+        print(f"Saved {len(saved_articles)} new articles")
+        
+        # Process newly saved articles if we have an analyzer
+        try:
+            analyzer = NewsAnalyzer(db)
+            news_ids = [str(article.id) for article in saved_articles]
+            
+            # Process if there are any new articles
+            if news_ids:
+                # Attempt to categorize and compute relevance
+                try:
+                    categories = analyzer.categorize_news(news_ids)
+                    print(f"Assigned categories to {len(categories)} articles")
+                except Exception as e:
+                    print(f"Error categorizing news: {str(e)}")
+                
+                try:
+                    relevance = analyzer.compute_interest_relevance(news_ids)
+                    print(f"Computed relevance for {len(relevance)} articles")
+                except Exception as e:
+                    print(f"Error computing relevance: {str(e)}")
+        except Exception as analyzer_error:
+            print(f"Error using analyzer: {str(analyzer_error)}")
+        
+        return {
+            "status": "success",
+            "articles_fetched": len(articles),
+            "articles_saved": len(saved_articles),
+            "message": f"Successfully fetched news. Found {len(articles)} articles, saved {len(saved_articles)} new ones."
+        }
+    except Exception as e:
+        print(f"Error in manual fetch: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error fetching news: {str(e)}"
+        )
 
 # ROUTES WITH PATH PARAMETERS LAST
 # ================================
