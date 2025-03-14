@@ -265,3 +265,37 @@ def get_categories(
 def test_digest_endpoint():
     """Test endpoint to verify routing"""
     return {"status": "ok", "message": "Digest endpoint exists"}
+
+
+@router.get("/simplified-digest")
+def simplified_digest(
+    timeframe: str = "daily",
+    current_user: User = Depends(get_current_user),
+):
+    """Simplified version of digest endpoint for debugging"""
+    try:
+        # Return a minimal valid digest
+        return {
+            "timestamp": datetime.utcnow().isoformat(),
+            "timeframe": timeframe,
+            "overview": {"test": "This is a test digest"},
+            "top_stories": [
+                {
+                    "id": "1", 
+                    "title": "Test Story", 
+                    "summary": "This is a test summary",
+                    "url": "https://example.com/news/1",
+                    "source": "Test Source",
+                    "published_at": datetime.utcnow().isoformat()
+                }
+            ]
+        }
+    except Exception as e:
+        print(f"Error in simplified digest: {str(e)}")
+        # Return a minimal valid digest
+        return {
+            "timestamp": datetime.utcnow().isoformat(),
+            "timeframe": timeframe,
+            "overview": {"error": f"Error generating digest: {str(e)}"},
+            "top_stories": []
+        }
