@@ -40,7 +40,7 @@ api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
     if (token) {
-      // Make sure we're using Bearer token format
+      // Make sure we're using Bearer token format with a space after "Bearer"
       config.headers['Authorization'] = `Bearer ${token}`;
       console.log("Request to:", config.url, "with token:", token.substring(0, 10) + "...");
     } else {
