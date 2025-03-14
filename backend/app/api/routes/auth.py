@@ -23,8 +23,8 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/login")
 
 def get_current_user(db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)) -> User:
-    
     print(f"🔐 Auth request with token: {token[:10]}...")
+    
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -33,17 +33,38 @@ def get_current_user(db: Session = Depends(get_db), token: str = Depends(oauth2_
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
         print(f"Decoded payload: {payload}")
-        user_id: str = payload.get("sub")
+        
+        user_id = payload.get("sub")
+        
+        # Handle case where sub might be a string representation of a dict
+        if user_id and isinstance(user_id, str) and user_id.startswith("{"):
+            try:
+                # Try to parse it as JSON
+                import json
+                user_dict = json.loads(user_id.replace("'", "\""))
+                if isinstance(user_dict, dict) and 'sub' in user_dict:
+                    user_id = user_dict['sub']
+            except:
+                # If parsing fails, continue with the original user_id
+                pass
+                
         if user_id is None:
             raise credentials_exception
+            
+        print(f"Looking for user with ID: {user_id}")
+        
     except JWTError as e:
         print(f"JWT Error: {str(e)}")
         raise credentials_exception
     
     user = db.query(User).filter(User.id == user_id).first()
     if user is None:
+        print(f"No user found with ID: {user_id}")
         raise credentials_exception
+        
+    print(f"User found: {user.email}")
     return user
+
 
 # Routes
 @router.post("/register", response_model=UserInDB)
