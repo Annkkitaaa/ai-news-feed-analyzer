@@ -20,13 +20,8 @@ def create_access_token(subject: Union[str, Any], expires_delta: Optional[timede
             minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
         )
     
-    # FIX: Make sure subject is a simple string, not a nested object
-    if isinstance(subject, dict) and 'sub' in subject:
-        sub = subject['sub']  # Extract the sub directly
-    else:
-        sub = str(subject)
-    
-    to_encode = {"exp": expire, "sub": sub}
+    # Simply convert the subject to string - no complex handling
+    to_encode = {"exp": expire, "sub": str(subject)}
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm="HS256")
     
     return encoded_jwt
