@@ -16,36 +16,54 @@ def create_application() -> FastAPI:
         title=settings.PROJECT_NAME,
         openapi_url=f"{settings.API_V1_STR}/openapi.json",
     )
-
-    # Set CORS middleware
-    origins = settings.BACKEND_CORS_ORIGINS
-    if origins:
-        application.add_middleware(
-            CORSMiddleware,
-            allow_origins=origins,
-            allow_credentials=True,
-            allow_methods=["*"],
-            allow_headers=["*"],
-        )
-
+    
+    # Set CORS middleware with explicit origins
+    # Make sure these match your frontend URLs exactly
+    origins = [
+        "http://localhost:3000",  # React default
+        "http://127.0.0.1:3000",
+        "http://localhost:8000",  # Backend for dev convenience
+        "http://127.0.0.1:8000",
+    ]
+    
+    # Add any additional origins from settings
+    if settings.BACKEND_CORS_ORIGINS:
+        origins.extend([str(origin) for origin in settings.BACKEND_CORS_ORIGINS])
+    
+    # Apply middleware with explicit configuration
+    application.add_middleware(
+        CORSMiddleware,
+        allow_origins=origins,
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+        allow_headers=["Content-Type", "Authorization", "Accept", "X-Requested-With"],
+        expose_headers=["Content-Length"],
+        max_age=600,  # Cache preflight requests for 10 minutes
+    )
+    
     # Set up event handlers
     application.add_event_handler("startup", create_start_app_handler(application))
     application.add_event_handler("shutdown", create_stop_app_handler(application))
-
+    
     # Include API routes with correct prefixes
     application.include_router(auth.router, prefix=f"{settings.API_V1_STR}")
     application.include_router(news.router, prefix=f"{settings.API_V1_STR}")
     application.include_router(profiles.router, prefix=f"{settings.API_V1_STR}")
     application.include_router(subscriptions.router, prefix=f"{settings.API_V1_STR}")
-
+    
     @application.get("/")
     def root():
         return {"message": f"Welcome to {settings.PROJECT_NAME} API. Visit /docs for documentation."}
-    
+        
     @application.get("/health")
     def health_check():
         return {"status": "ok"}
-
+    
+    # Add an endpoint to test CORS
+    @application.get("/test-cors")
+    def test_cors():
+        return {"cors_test": "successful"}
+    
     return application
 
 app = create_application()
