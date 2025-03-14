@@ -32,15 +32,19 @@ def create_application() -> FastAPI:
     application.add_event_handler("startup", create_start_app_handler(application))
     application.add_event_handler("shutdown", create_stop_app_handler(application))
 
-    # Include API routes
-    application.include_router(auth.router, prefix=settings.API_V1_STR)
-    application.include_router(news.router, prefix=settings.API_V1_STR)
-    application.include_router(profiles.router, prefix=settings.API_V1_STR)
-    application.include_router(subscriptions.router, prefix=settings.API_V1_STR)
+    # Include API routes with correct prefixes
+    application.include_router(auth.router, prefix=f"{settings.API_V1_STR}")
+    application.include_router(news.router, prefix=f"{settings.API_V1_STR}")
+    application.include_router(profiles.router, prefix=f"{settings.API_V1_STR}")
+    application.include_router(subscriptions.router, prefix=f"{settings.API_V1_STR}")
 
     @application.get("/")
     def root():
         return {"message": f"Welcome to {settings.PROJECT_NAME} API. Visit /docs for documentation."}
+    
+    @application.get("/health")
+    def health_check():
+        return {"status": "ok"}
 
     return application
 
