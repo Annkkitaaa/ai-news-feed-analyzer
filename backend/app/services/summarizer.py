@@ -1,6 +1,7 @@
 import logging
+import re
 from typing import List, Dict, Any, Optional, Tuple
-from datetime import datetime
+from datetime import datetime, timedelta
 import numpy as np
 from sqlalchemy.orm import Session
 
@@ -9,7 +10,7 @@ from app.core.config import settings
 
 # LLM imports
 from langchain.chains import LLMChain
-from langchain.llms import HuggingFacePipeline, OpenAI
+from langchain_community.llms import HuggingFacePipeline, OpenAI
 from langchain.prompts import PromptTemplate
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.chains.summarize import load_summarize_chain
@@ -34,44 +35,86 @@ class NewsSummarizer:
 
     def _initialize_llm(self):
         """Initialize the right LLM based on settings."""
-        if settings.LLM_TYPE == "openai":
-            return OpenAI(
-                temperature=0.1,
-                model_name="gpt-3.5-turbo-instruct",
-                openai_api_key=settings.LLM_API_KEY
-            )
-        else:  # Default to huggingface
+        if settings.LLM_TYPE == "openai" and settings.LLM_API_KEY:
             try:
-                # Initialize pipeline for summarization and text generation
+                return OpenAI(
+                    temperature=0.1,
+                    model_name="gpt-3.5-turbo-instruct",
+                    openai_api_key=settings.LLM_API_KEY
+                )
+            except Exception as e:
+                logger.error(f"Error initializing OpenAI model: {e}")
+        
+        # Default to huggingface
+        try:
+            # Use a tiny model that requires minimal resources
+            model_id = "distilgpt2"  # Default to smaller model
+            
+            # Try with smaller configuration
+            try:
                 pipe = pipeline(
                     "text-generation",
-                    model=settings.LLM_MODEL_ID,
-                    max_length=2048,
+                    model=model_id,
+                    max_length=512,  # Reduced from 1024
                     temperature=0.1,
-                    top_p=0.95,
-                    repetition_penalty=1.15
+                    device=-1  # Force CPU usage
                 )
-                
+                logger.info(f"Successfully loaded model: {model_id}")
                 return HuggingFacePipeline(pipeline=pipe)
-            except Exception as e:
-                logger.error(f"Error initializing HuggingFace model: {e}")
-                # Default to a smaller model as fallback
+            except Exception as model_error:
+                logger.error(f"Error loading model with default settings: {model_error}")
+                
+                # Try with minimal configuration
                 try:
+                    # Use a tiny TinyLlama model
+                    model_id = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
                     pipe = pipeline(
                         "text-generation",
-                        model="distilgpt2",
-                        max_length=1024,
-                        temperature=0.1
+                        model=model_id,
+                        max_length=256,
+                        temperature=0.1,
+                        device=-1  # Force CPU usage
                     )
+                    logger.info(f"Successfully loaded fallback model: {model_id}")
                     return HuggingFacePipeline(pipeline=pipe)
-                except Exception as e2:
-                    logger.error(f"Error initializing fallback model: {e2}")
-                    return None
+                except Exception as tiny_error:
+                    logger.error(f"Error loading tiny model: {tiny_error}")
+                    
+                    # Create a simple mock LLM that doesn't require model loading
+                    class MockLLM:
+                        def generate(self, prompts, **kwargs):
+                            return [{"generated_text": "Unable to generate summary due to model limitations."}]
+                    
+                    logger.warning("Using mock LLM due to all model loading failures")
+                    return HuggingFacePipeline(pipeline=MockLLM())
+        except Exception as e:
+            logger.error(f"Error initializing HuggingFace model: {e}")
+            return None
+
+    def models_available(self):
+        """Check if the LLM model is available."""
+        return self.llm is not None
+
+    def extract_simple_summary(self, text, max_sentences=5):
+        """Simple extractive summarization that doesn't use ML models."""
+        if not text:
+            return ""
+        
+        # Split into sentences (simple approach)
+        sentences = re.split(r'(?<!\w\.\w.)(?<![A-Z][a-z]\.)(?<=\.|\?)\s', text)
+        
+        # Keep first few sentences as summary (simple but effective for news)
+        summary_sentences = sentences[:max_sentences]
+        
+        # Join and clean up
+        summary = ' '.join(summary_sentences).strip()
+        
+        return summary
 
     def summarize_article(self, news_id: str, verbose: bool = False) -> str:
         """Generate a concise summary for a news article using LLM."""
         news = self.db.query(News).filter(News.id == news_id).first()
-        if not news or not self.llm:
+        if not news:
             return ""
         
         # If we already have a summary, return it unless we're forcing verbose
@@ -82,6 +125,18 @@ class NewsSummarizer:
         content = news.content if news.content else ""
         if len(content) > 10000:
             content = content[:10000]  # Limit content length
+        
+        # If no content, return title
+        if not content:
+            return news.title
+            
+        # If LLM not available, use extractive summarization
+        if not self.llm or not self.models_available():
+            summary = self.extract_simple_summary(content)
+            if not news.summary:
+                news.summary = summary
+                self.db.commit()
+            return summary
         
         # Create a prompt for summarization
         prompt = PromptTemplate(
@@ -118,11 +173,16 @@ class NewsSummarizer:
             return summary
         except Exception as e:
             logger.error(f"Error summarizing article {news_id}: {e}")
-            return news.summary if news.summary else ""
+            # Fallback to extractive summary
+            summary = self.extract_simple_summary(content)
+            if not news.summary:
+                news.summary = summary
+                self.db.commit()
+            return summary
 
     def generate_category_summary(self, category_id: str, days: int = 1) -> str:
         """Generate a summary of recent news in a specific category."""
-        if not self.llm:
+        if not self.models_available():
             return "Summarization service unavailable."
             
         category = self.db.query(Category).filter(Category.id == category_id).first()
@@ -146,6 +206,12 @@ class NewsSummarizer:
         for news in news_items:
             if not news.summary or len(news.summary) < 100:
                 self.summarize_article(str(news.id))
+        
+        # If LLM not available, just list the articles
+        if not self.llm or not self.models_available():
+            summary = f"Recent {category.name} news includes: "
+            titles = [news.title for news in news_items[:5]]
+            return summary + "; ".join(titles) + "."
         
         # Compile article information
         articles_text = ""
@@ -178,20 +244,22 @@ class NewsSummarizer:
     def generate_user_digest(self, user_id: str, timeframe: str = "daily") -> Dict[str, Any]:
         """Generate a personalized news digest for a user."""
         user = self.db.query(User).filter(User.id == user_id).first()
-        if not user or not self.llm:
-            return {"error": "User not found or summarization service unavailable."}
+        if not user:
+            return {"error": "User not found"}
+        
+        # If LLM not available, generate a simple digest
+        if not self.llm or not self.models_available():
+            return self.generate_simple_digest(user_id, timeframe)
         
         # Get user's interests
         user_interests = user.interests
         if not user_interests:
-            return {"error": "User has no specified interests."}
+            return self.generate_simple_digest(user_id, timeframe)
         
         # Determine time range based on timeframe
         cutoff_date = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
         if timeframe == "weekly":
-            days_to_subtract = 7
-        else:  # Default to daily
-            days_to_subtract = 1
+            cutoff_date = cutoff_date - timedelta(days=7)
         
         # Get news matched to user interests
         news_by_interest = {}
@@ -202,14 +270,19 @@ class NewsSummarizer:
                           .order_by(News.published_at.desc())
                           .all())
             
-            # Filter by relevance score
+            # Filter by relevance score if available
             relevant_news = []
             for news in recent_news:
-                if not news.relevance_scores:
-                    continue
-                    
-                if str(interest.id) in news.relevance_scores and news.relevance_scores[str(interest.id)] > 0.5:
+                if news.relevance_scores and str(interest.id) in news.relevance_scores and news.relevance_scores[str(interest.id)] > 0.5:
                     relevant_news.append(news)
+                    
+            # If no relevant news with scores, just use latest news
+            if not relevant_news:
+                relevant_news = (self.db.query(News)
+                                .filter(News.published_at >= cutoff_date)
+                                .order_by(News.published_at.desc())
+                                .limit(5)
+                                .all())
             
             if relevant_news:
                 news_by_interest[interest.name] = relevant_news[:5]  # Top 5 most relevant
@@ -286,14 +359,97 @@ class NewsSummarizer:
                 }
         
         return digest
+        
+    def generate_simple_digest(self, user_id: str, timeframe: str = "daily") -> Dict[str, Any]:
+        """Generate a simple digest without using ML models."""
+        user = self.db.query(User).filter(User.id == user_id).first()
+        if not user:
+            return {"error": "User not found"}
+        
+        # Get recent news (no ML filtering)
+        cutoff_date = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        if timeframe == "weekly":
+            cutoff_date = cutoff_date - timedelta(days=7)
+            
+        recent_news = self.db.query(News).filter(News.published_at >= cutoff_date).order_by(News.published_at.desc()).limit(15).all()
+        
+        # If no recent news, just get latest news without date filter
+        if not recent_news:
+            recent_news = self.db.query(News).order_by(News.published_at.desc()).limit(15).all()
+        
+        # Ensure all articles have summaries
+        for news in recent_news:
+            if not news.summary or len(news.summary) < 50:
+                extractive_summary = self.extract_simple_summary(news.content or "")
+                if extractive_summary:
+                    news.summary = extractive_summary
+                    self.db.commit()
+        
+        # Group by category if available
+        news_by_category = {}
+        for news in recent_news:
+            for category in news.categories:
+                if category.name not in news_by_category:
+                    news_by_category[category.name] = []
+                news_by_category[category.name].append(news)
+        
+        # Create digest content
+        digest = {
+            "user_id": str(user_id),
+            "user_name": f"{user.first_name} {user.last_name}".strip(),
+            "timestamp": datetime.utcnow().isoformat(),
+            "timeframe": timeframe,
+            "interests": {}
+        }
+        
+        # Add category-based news
+        for category, news_list in news_by_category.items():
+            digest["interests"][category] = {
+                "summary": f"Recent news in {category}",
+                "articles": [
+                    {
+                        "id": str(news.id),
+                        "title": news.title,
+                        "summary": news.summary or "No summary available",
+                        "url": news.url,
+                        "source": news.source.name if news.source else "",
+                        "published_at": news.published_at.isoformat() if news.published_at else None
+                    }
+                    for news in news_list[:5]
+                ]
+            }
+        
+        # If no categories, add a general section
+        if not digest["interests"]:
+            digest["interests"]["General News"] = {
+                "summary": "Recent top news stories",
+                "articles": [
+                    {
+                        "id": str(news.id),
+                        "title": news.title,
+                        "summary": news.summary or "No summary available",
+                        "url": news.url,
+                        "source": news.source.name if news.source else "",
+                        "published_at": news.published_at.isoformat() if news.published_at else None
+                    }
+                    for news in recent_news[:10]
+                ]
+            }
+        
+        return digest
 
-    def generate_trend_analysis(self, days: int = 7, category: Optional[str] = None) -> str:
+    def generate_trend_analysis(self, days: int = 7, category: Optional[str] = None) -> Dict[str, Any]:
         """Generate an analysis of news trends over time."""
-        if not self.llm:
-            return "Trend analysis service unavailable."
+        if not self.llm or not self.models_available():
+            return {
+                "analysis": "Trend analysis currently unavailable.",
+                "days": days,
+                "category": category,
+                "generated_at": datetime.utcnow().isoformat()
+            }
         
         # Get recent news
-        cutoff_date = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        cutoff_date = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=days)
         query = self.db.query(News).filter(News.published_at >= cutoff_date)
         
         # Filter by category if provided
@@ -305,7 +461,12 @@ class NewsSummarizer:
         news_items = query.order_by(News.published_at.desc()).limit(30).all()
         
         if not news_items:
-            return "Insufficient data for trend analysis."
+            return {
+                "analysis": "Insufficient data for trend analysis.",
+                "days": days,
+                "category": category,
+                "generated_at": datetime.utcnow().isoformat()
+            }
         
         # Compile titles and summaries
         news_text = ""
@@ -339,7 +500,19 @@ class NewsSummarizer:
                 news_text=news_text,
                 days=days
             )
-            return analysis.strip()
+            
+            # Return the analysis
+            return {
+                "analysis": analysis.strip(),
+                "days": days,
+                "category": category,
+                "generated_at": datetime.utcnow().isoformat()
+            }
         except Exception as e:
             logger.error(f"Error generating trend analysis: {e}")
-            return "Trend analysis currently unavailable."
+            return {
+                "analysis": "Trend analysis currently unavailable due to technical issues.",
+                "days": days,
+                "category": category,
+                "generated_at": datetime.utcnow().isoformat()
+            }

@@ -218,7 +218,7 @@ def get_news_digest(
 def get_news_summary(
     news_id: str,
     verbose: bool = False,
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Get or generate a summary for a news article."""
@@ -248,7 +248,7 @@ def get_news_summary(
 @router.get("/minimal-digest")
 def get_minimal_digest(
     timeframe: str = "daily",
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Minimal version of digest endpoint"""
