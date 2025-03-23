@@ -58,36 +58,48 @@ class NewsAnalyzer:
         
         # Default to huggingface
         try:
-            # Use a smaller model that doesn't require authentication
+            # Use a tiny model that requires minimal resources
             model_id = "distilgpt2"  # Default to smaller model
             
-            # Try the specified model if available
-            if settings.LLM_MODEL_ID:
+            # Try with smaller configuration
+            try:
+                pipe = pipeline(
+                    "text-generation",
+                    model=model_id,
+                    max_length=512,  # Reduced from 1024
+                    temperature=0.1,
+                    device=-1  # Force CPU usage
+                )
+                logger.info(f"Successfully loaded model: {model_id}")
+                return HuggingFacePipeline(pipeline=pipe)
+            except Exception as model_error:
+                logger.error(f"Error loading model with default settings: {model_error}")
+                
+                # Try with minimal configuration
                 try:
+                    # Use a tiny TinyLlama model
+                    model_id = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
                     pipe = pipeline(
                         "text-generation",
-                        model=settings.LLM_MODEL_ID,
-                        max_length=2048,
+                        model=model_id,
+                        max_length=256,
                         temperature=0.1,
-                        top_p=0.95,
-                        repetition_penalty=1.15
+                        device=-1  # Force CPU usage
                     )
+                    logger.info(f"Successfully loaded fallback model: {model_id}")
                     return HuggingFacePipeline(pipeline=pipe)
-                except Exception as model_error:
-                    logger.error(f"Error loading specified model: {model_error}. Falling back to {model_id}")
-            
-            # Fall back to smaller model
-            logger.info(f"Using fallback model: {model_id}")
-            pipe = pipeline(
-                "text-generation",
-                model=model_id,
-                max_length=1024,
-                temperature=0.1
-            )
-            return HuggingFacePipeline(pipeline=pipe)
+                except Exception as tiny_error:
+                    logger.error(f"Error loading tiny model: {tiny_error}")
+                    
+                    # Create a simple mock LLM that doesn't require model loading
+                    class MockLLM:
+                        def generate(self, prompts, **kwargs):
+                            return [{"generated_text": "Unable to generate summary due to model limitations."}]
+                    
+                    logger.warning("Using mock LLM due to all model loading failures")
+                    return HuggingFacePipeline(pipeline=MockLLM())
         except Exception as e:
             logger.error(f"Error initializing HuggingFace model: {e}")
-            # Return a dummy LLM that returns a generic response
             return None
 
     def _initialize_embedding_model(self):
