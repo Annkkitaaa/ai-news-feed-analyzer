@@ -17,3 +17,5 @@ class SubscriptionStatus(BaseModel):
     custom_interval_hours: Optional[int] = None
     last_email_sent: Optional[datetime] = None
     is_active: bool
+
+    #new
