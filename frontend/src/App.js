@@ -14,6 +14,7 @@ import { NewsSourcesManagement } from './components/NewsSourcesManagement';
 import { ReadingHistory } from './components/ReadingHistory';
 import { NewsDetail } from './components/NewsDetail';
 import { NewsDigest } from './components/NewsDigest';
+import Analytics from './components/Analytics'; // Import the Analytics component
 
 // Layout Components
 import { DashboardLayout } from './components/layout/DashboardLayout';
@@ -139,6 +140,14 @@ function App() {
           <ProtectedRoute>
             <DashboardLayout>
               <NewsDigest />
+            </DashboardLayout>
+          </ProtectedRoute>
+        } />
+        {/* Added Analytics Route */}
+        <Route path="/analytics" element={
+          <ProtectedRoute>
+            <DashboardLayout>
+              <Analytics />
             </DashboardLayout>
           </ProtectedRoute>
         } />
