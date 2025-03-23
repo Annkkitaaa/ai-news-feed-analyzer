@@ -214,31 +214,79 @@ def get_news_digest(
             "top_stories": []
         }
 
+@router.get("/summary", response_model=Dict[str, Any])
+def get_news_summary(
+    news_id: str,
+    verbose: bool = False,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Get or generate a summary for a news article."""
+    # Get the article
+    news = db.query(News).filter(News.id == news_id).first()
+    if not news:
+        raise HTTPException(status_code=404, detail="News article not found")
+    
+    try:
+        # Try to get the analyzer
+        analyzer = get_news_analyzer(db)
+        summary = analyzer.summarize_article(news_id, verbose)
+        
+        return {"summary": summary, "generated": True}
+    except Exception as e:
+        # Fallback to existing summary or simple text extraction
+        if news.summary:
+            return {"summary": news.summary, "generated": False}
+        
+        # Very basic fallback - first 2-3 sentences
+        content = news.content if news.content else ""
+        sentences = re.split(r'(?<!\w\.\w.)(?<![A-Z][a-z]\.)(?<=\.|\?)\s', content)
+        summary = ' '.join(sentences[:3]).strip()
+        
+        return {"summary": summary or "No summary available.", "generated": False, "error": str(e)}
+
 @router.get("/minimal-digest")
 def get_minimal_digest(
     timeframe: str = "daily",
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
 ):
     """Minimal version of digest endpoint"""
-    print(f"Minimal digest called with timeframe: {timeframe}")
-    print(f"User: {current_user.email}")
+    # Get recent news for this user
+    # For simplicity, just get the most recent news
+    recent_news = db.query(News).order_by(News.published_at.desc()).limit(10).all()
     
-    # Return a very basic response
-    return {
-        "timestamp": datetime.utcnow().isoformat(),
+    # Format the news items
+    news_items = []
+    for news in recent_news:
+        # Extract a basic summary if none exists
+        summary = news.summary
+        if not summary and news.content:
+            sentences = re.split(r'(?<!\w\.\w.)(?<![A-Z][a-z]\.)(?<=\.|\?)\s', news.content)
+            summary = ' '.join(sentences[:3]).strip()
+        
+        news_items.append({
+            "id": str(news.id),
+            "title": news.title,
+            "url": news.url,
+            "summary": summary or "No summary available.",
+            "source": news.source.name if news.source else "Unknown",
+            "published_at": news.published_at.isoformat() if news.published_at else None
+        })
+    
+    # Create a basic digest
+    digest = {
         "timeframe": timeframe,
-        "overview": {"test": "This is a minimal test digest"},
-        "top_stories": [
+        "generated_at": datetime.utcnow().isoformat(),
+        "sections": [
             {
-                "id": "1",
-                "title": "Test Story",
-                "summary": "This is a test summary",
-                "url": "https://example.com",
-                "source": "Test",
-                "published_at": datetime.utcnow().isoformat()
+                "title": "Recent News",
+                "articles": news_items
             }
         ]
     }
+    
+    return digest
 
 @router.get("/simplified-digest")
 def simplified_digest(
