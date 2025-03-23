@@ -1,4 +1,5 @@
 import logging
+import re
 from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime
 import os
@@ -117,6 +118,22 @@ class NewsAnalyzer:
         """Check if both LLM and embedding models are available."""
         return self.llm is not None and self.embedding_model is not None
 
+    def extract_simple_summary(self, text, max_sentences=5):
+        """Simple extractive summarization that doesn't use ML models."""
+        if not text:
+            return ""
+        
+        # Split into sentences (simple approach)
+        sentences = re.split(r'(?<!\w\.\w.)(?<![A-Z][a-z]\.)(?<=\.|\?)\s', text)
+        
+        # Keep first few sentences as summary (simple but effective for news)
+        summary_sentences = sentences[:max_sentences]
+        
+        # Join and clean up
+        summary = ' '.join(summary_sentences).strip()
+        
+        return summary
+
     def categorize_news(self, news_ids: List[str]) -> Dict[str, List[str]]:
         """Categorize news articles into predefined categories."""
         categories = self.db.query(Category).all()
@@ -226,6 +243,10 @@ class NewsAnalyzer:
         cutoff_date = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
         news_items = self.db.query(News).filter(News.published_at >= cutoff_date).all()
         
+        # If no news with relevance scores, just return recent news
+        if not news_items or all(not news.relevance_scores for news in news_items):
+            return self.db.query(News).order_by(News.published_at.desc()).limit(limit).all()
+        
         scored_news = []
         for news in news_items:
             if not news.relevance_scores:
@@ -245,7 +266,19 @@ class NewsAnalyzer:
         scored_news.sort(key=lambda x: x[1], reverse=True)
         
         # Return the top 'limit' results
-        return [item[0] for item in scored_news[:limit]]
+        result = [item[0] for item in scored_news[:limit]]
+        
+        # If not enough relevant news, pad with recent news
+        if len(result) < limit:
+            existing_ids = [news.id for news in result]
+            additional_news = (self.db.query(News)
+                              .filter(News.id.notin_(existing_ids))
+                              .order_by(News.published_at.desc())
+                              .limit(limit - len(result))
+                              .all())
+            result.extend(additional_news)
+        
+        return result
 
     def get_trending_news(self, category: Optional[str] = None, limit: int = 10) -> List[News]:
         """Get trending news articles based on recency and user engagement."""
@@ -264,36 +297,58 @@ class NewsAnalyzer:
         # Order by recency first
         results = query.order_by(News.published_at.desc()).limit(limit * 2).all()
         
+        # If no results, remove the date filter and try again
+        if not results:
+            query = self.db.query(News)
+            if category:
+                category_obj = self.db.query(Category).filter(Category.name == category).first()
+                if category_obj:
+                    query = query.join(News.categories).filter(Category.id == category_obj.id)
+            results = query.order_by(News.published_at.desc()).limit(limit).all()
+            return results
+        
         # Further prioritize by read count
         for news in results:
-            news.read_count = self.db.query(func.count(News.read_history)).filter(News.id == news.id).scalar() or 0
+            read_count_query = self.db.query(func.count(News.read_history)).filter(News.id == news.id)
+            news.read_count = read_count_query.scalar() or 0
         
         results.sort(key=lambda x: (x.read_count * 0.7 + (x.published_at.timestamp() * 0.3)), reverse=True)
         
         return results[:limit]
 
-    def summarize_article(self, news_id: str) -> str:
+    def summarize_article(self, news_id: str, verbose: bool = False) -> str:
         """Generate a concise summary for a news article using LLM."""
         news = self.db.query(News).filter(News.id == news_id).first()
-        if not news or not self.llm:
+        if not news:
             return ""
         
-        # If we already have a summary, return it
-        if news.summary and len(news.summary) > 100:
+        # If we already have a summary, return it unless we're forcing verbose
+        if news.summary and len(news.summary) > 100 and not verbose:
             return news.summary
         
         # Prepare the content for summarization
         content = news.content if news.content else ""
         if len(content) > 10000:
             content = content[:10000]  # Limit content length
+            
+        # If no content, return title
+        if not content:
+            return news.title
+            
+        # If LLM not available, use extractive summarization
+        if not self.llm or not self.models_available():
+            summary = self.extract_simple_summary(content)
+            if not news.summary:
+                news.summary = summary
+                self.db.commit()
+            return summary
         
         # Create a prompt for summarization
         prompt = PromptTemplate(
-            input_variables=["title", "content"],
+            input_variables=["title", "content", "verbose"],
             template="""
-            Summarize the following news article in a concise, informative paragraph.
+            Summarize the following news article in a {verbose} manner.
             Keep the summary objective and factual, covering the main points.
-            Limit the summary to about 3-5 sentences.
             
             Title: {title}
             
@@ -306,25 +361,39 @@ class NewsAnalyzer:
         try:
             # Create and run the chain
             chain = LLMChain(llm=self.llm, prompt=prompt)
-            summary = chain.run(title=news.title, content=content)
+            summary = chain.run(
+                title=news.title, 
+                content=content, 
+                verbose="detailed" if verbose else "concise"
+            )
             
             # Clean up the summary
             summary = summary.strip()
             
-            # Update the article with the summary
-            news.summary = summary
-            self.db.commit()
+            # Update the article with the summary if not verbose
+            if not verbose:
+                news.summary = summary
+                self.db.commit()
             
             return summary
         except Exception as e:
             logger.error(f"Error summarizing article {news_id}: {e}")
-            return news.summary if news.summary else ""
+            # Fallback to extractive summary
+            summary = self.extract_simple_summary(content)
+            if not news.summary:
+                news.summary = summary
+                self.db.commit()
+            return summary
 
     def generate_digest(self, user_id: str, timeframe: str = "daily") -> Dict[str, Any]:
         """Generate a personalized news digest for a user."""
         user = self.db.query(User).filter(User.id == user_id).first()
-        if not user or not self.llm:
-            return {"error": "User not found or LLM not available"}
+        if not user:
+            return {"error": "User not found"}
+        
+        # If LLM not available, generate a simple digest
+        if not self.llm or not self.models_available():
+            return self.generate_simple_digest(user_id, timeframe)
         
         # Get personalized news items
         personalized_news = self.get_personalized_news(user_id, limit=15)
@@ -391,6 +460,162 @@ class NewsAnalyzer:
         }
         
         return digest
+        
+    def generate_simple_digest(self, user_id: str, timeframe: str = "daily") -> Dict[str, Any]:
+        """Generate a simple digest without using ML models."""
+        user = self.db.query(User).filter(User.id == user_id).first()
+        if not user:
+            return {"error": "User not found"}
+        
+        # Get recent news (no ML filtering)
+        cutoff_date = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        recent_news = self.db.query(News).filter(News.published_at >= cutoff_date).order_by(News.published_at.desc()).limit(15).all()
+        
+        # If no recent news, just get latest news without date filter
+        if not recent_news:
+            recent_news = self.db.query(News).order_by(News.published_at.desc()).limit(15).all()
+        
+        # Ensure all articles have summaries
+        for news in recent_news:
+            if not news.summary or len(news.summary) < 50:
+                extractive_summary = self.extract_simple_summary(news.content or "")
+                if extractive_summary:
+                    news.summary = extractive_summary
+                    self.db.commit()
+        
+        # Group by category if available
+        news_by_category = {}
+        for news in recent_news:
+            for category in news.categories:
+                if category.name not in news_by_category:
+                    news_by_category[category.name] = []
+                news_by_category[category.name].append(news)
+        
+        # Create a digest with categorized sections
+        sections = []
+        
+        # Add category-based sections
+        for category, category_news in news_by_category.items():
+            sections.append({
+                "title": category,
+                "articles": [
+                    {
+                        "id": str(news.id),
+                        "title": news.title,
+                        "summary": news.summary or "No summary available",
+                        "url": news.url,
+                        "source": news.source.name if news.source else "",
+                        "published_at": news.published_at.isoformat() if news.published_at else None
+                    }
+                    for news in category_news[:5]
+                ]
+            })
+        
+        # Add a general section with all news if no categories
+        if not sections:
+            sections.append({
+                "title": "Recent News",
+                "articles": [
+                    {
+                        "id": str(news.id),
+                        "title": news.title,
+                        "summary": news.summary or "No summary available",
+                        "url": news.url,
+                        "source": news.source.name if news.source else "",
+                        "published_at": news.published_at.isoformat() if news.published_at else None
+                    }
+                    for news in recent_news[:10]
+                ]
+            })
+        
+        # Create the final digest
+        digest = {
+            "user_id": str(user_id),
+            "timestamp": datetime.utcnow().isoformat(),
+            "timeframe": timeframe,
+            "sections": sections
+        }
+        
+        return digest
+
+    def generate_trend_analysis(self, days: int = 7, category: Optional[str] = None) -> Dict[str, Any]:
+        """Generate an analysis of news trends over time."""
+        if not self.models_available():
+            return {
+                "analysis": "Trend analysis currently unavailable.",
+                "days": days,
+                "category": category,
+                "generated_at": datetime.utcnow().isoformat()
+            }
+        
+        # Get recent news
+        cutoff_date = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        query = self.db.query(News).filter(News.published_at >= cutoff_date)
+        
+        # Filter by category if provided
+        if category:
+            category_obj = self.db.query(Category).filter(Category.name == category).first()
+            if category_obj:
+                query = query.join(News.categories).filter(Category.id == category_obj.id)
+        
+        news_items = query.order_by(News.published_at.desc()).limit(30).all()
+        
+        if not news_items:
+            return {
+                "analysis": "Insufficient data for trend analysis.",
+                "days": days,
+                "category": category,
+                "generated_at": datetime.utcnow().isoformat()
+            }
+        
+        # Compile titles and summaries
+        news_text = ""
+        for i, news in enumerate(news_items[:20]):  # Limit to 20 for manageability
+            news_text += f"Article {i+1}: {news.title}\n"
+            if news.summary:
+                news_text += f"Summary: {news.summary[:200]}...\n\n"
+            else:
+                news_text += f"Published: {news.published_at}\n\n"
+        
+        # Create a prompt for trend analysis
+        category_text = f" in the {category} category" if category else ""
+        prompt = PromptTemplate(
+            input_variables=["category_text", "news_text", "days"],
+            template="""
+            Based on these recent news articles{category_text} from the past {days} days, 
+            identify 3-5 key trends or patterns. Provide a thoughtful analysis that highlights 
+            emerging topics, shifts in focus, or recurring themes. Your analysis should be 
+            insightful and concise (about 4-6 sentences).
+            
+            {news_text}
+            
+            Trend Analysis:
+            """
+        )
+        
+        try:
+            chain = LLMChain(llm=self.llm, prompt=prompt)
+            analysis = chain.run(
+                category_text=category_text,
+                news_text=news_text,
+                days=days
+            )
+            
+            # Create the response object
+            return {
+                "analysis": analysis.strip(),
+                "days": days,
+                "category": category,
+                "generated_at": datetime.utcnow().isoformat()
+            }
+        except Exception as e:
+            logger.error(f"Error generating trend analysis: {e}")
+            return {
+                "analysis": "Trend analysis currently unavailable due to technical issues.",
+                "days": days,
+                "category": category,
+                "generated_at": datetime.utcnow().isoformat()
+            }
 
     def _build_category_embeddings(self, categories: List[Category]) -> None:
         """Build and cache embeddings for all categories."""
