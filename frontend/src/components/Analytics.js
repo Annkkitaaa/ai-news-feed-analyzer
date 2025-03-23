@@ -218,65 +218,69 @@ const Analytics = () => {
       </div>
 
       {/* Reading History Section */}
-      <div className="glass-card p-6">
+        <div className="glass-card p-6">
         <h2 className="text-2xl font-display font-semibold mb-4 flex items-center">
-          <FiClock className="mr-2" /> Reading History
+            <FiClock className="mr-2" /> Reading History
         </h2>
 
         {readHistory && readHistory.length > 0 ? (
-          <div className="space-y-6">
+            <div className="space-y-6">
             {Object.entries(groupedHistory).map(([date, items]) => (
-              <div key={date} className="mb-4">
-                <h3 className="text-lg font-medium mb-2">{format(new Date(date), 'EEEE, MMMM d, yyyy')}</h3>
+                <div key={date} className="mb-4">
+                <h3 className="text-lg font-medium mb-2">
+                    {format(new Date(date), 'EEEE, MMMM d, yyyy')}
+                </h3>
                 <div className="overflow-x-auto">
-                  <table className="w-full">
+                    <table className="w-full">
                     <thead>
-                      <tr className="border-b border-light-300 dark:border-dark-200">
+                        <tr className="border-b border-light-300 dark:border-dark-200">
                         <th className="text-left py-2 px-4">Article</th>
                         <th className="text-left py-2 px-4">Time</th>
                         <th className="text-left py-2 px-4">Duration</th>
-                      </tr>
+                        </tr>
                     </thead>
                     <tbody>
-                      {items.map((item) => (
+                        {items.map((item) => (
                         <tr
-                          key={`${item.news_id}-${item.timestamp}`}
-                          className="border-b border-light-300 dark:border-dark-200 hover:bg-light-200 dark:hover:bg-dark-300 transition-colors"
+                            key={`${item.news_id}-${item.timestamp}`}
+                            className="border-b border-light-300 dark:border-dark-200 hover:bg-light-200 dark:hover:bg-dark-300 transition-colors"
                         >
-                          <td className="py-3 px-4">
-                            
-                              href={item.news_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-primary-600 dark:text-primary-400 hover:underline"
+                            <td className="py-3 px-4">
+                            <a
+                                href={item.news_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-primary-600 dark:text-primary-400 hover:underline"
                             >
-                              {item.news_title}
+                                {item.news_title}
                             </a>
-                          </td>
-                          <td className="py-3 px-4">
+                            </td>
+                            <td className="py-3 px-4">
                             {format(new Date(item.timestamp), 'h:mm a')}
-                          </td>
-                          <td className="py-3 px-4">
+                            </td>
+                            <td className="py-3 px-4">
                             {item.duration_seconds
-                              ? `${Math.floor(item.duration_seconds / 60)}m ${item.duration_seconds % 60}s`
-                              : 'N/A'}
-                          </td>
+                                ? `${Math.floor(item.duration_seconds / 60)}m ${item.duration_seconds % 60}s`
+                                : 'N/A'}
+                            </td>
                         </tr>
-                      ))}
+                        ))}
                     </tbody>
-                  </table>
+                    </table>
                 </div>
-              </div>
+                </div>
             ))}
-          </div>
+            </div>
         ) : (
-          <div className="text-center p-4">
+            <div className="text-center p-4">
             <p>No reading history available</p>
-          </div>
+            </div>
         )}
-      </div>
-    </div>
+        </div>
+        </div>
   );
 };
 
+
+ 
 export default Analytics;
