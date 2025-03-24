@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 
 from app.db.models import News, Interest, User, Category, news_category
+from app.db.models import ReadHistory
 from app.core.config import settings
 
 # Set up logging
@@ -374,7 +375,7 @@ class NewsAnalyzer:
         # Further prioritize by read count
         for news in results:
             # Safer way to get read count
-            read_count = self.db.query(func.count("*")).select_from(news.read_history).scalar() or 0
+            read_count = self.db.query(func.count("*")).filter(ReadHistory.news_id == news.id).scalar() or 0
             news.read_count = read_count
         
         results.sort(key=lambda x: (getattr(x, 'read_count', 0) * 0.7 + (x.published_at.timestamp() * 0.3)), reverse=True)
