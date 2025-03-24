@@ -8,6 +8,7 @@ from app.api.routes import auth, news, profiles, subscriptions
 from app.core.config import settings
 from app.core.events import create_start_app_handler, create_stop_app_handler
 from app.services.aggregator import NewsAggregator
+from datetime import datetime, timedelta
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
