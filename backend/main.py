@@ -2,11 +2,12 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.db.session import engine
-from app.db.models import Base
+from app.db.session import SessionLocal, engine
+from app.db.models import News, Category, NewsSource
 from app.api.routes import auth, news, profiles, subscriptions
 from app.core.config import settings
 from app.core.events import create_start_app_handler, create_stop_app_handler
+from app.services.aggregator import NewsAggregator
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
