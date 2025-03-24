@@ -156,6 +156,42 @@ def send_test_email(
             detail="Invalid email type. Must be 'digest' or 'welcome'"
         )
 
+@router.post("/send-digest/{timeframe}", response_model=dict)
+def send_digest_to_user(
+    timeframe: str,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Send a digest email to the current user."""
+    try:
+        # Validate timeframe
+        if timeframe not in ["daily", "weekly"]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Timeframe must be 'daily' or 'weekly'"
+            )
+            
+        # Get email service
+        email_service = EmailService(db)
+        
+        # Send the digest in the background
+        background_tasks.add_task(
+            email_service.send_digest_email,
+            str(current_user.id),
+            timeframe
+        )
+        
+        return {
+            "status": "success",
+            "message": f"{timeframe.capitalize()} digest email has been queued for delivery to {current_user.email}"
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to send digest: {str(e)}"
+        )
+
 @router.post("/manual-digest", response_model=dict)
 def send_manual_digest(
     *,
