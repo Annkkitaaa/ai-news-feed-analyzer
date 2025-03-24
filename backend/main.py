@@ -77,5 +77,22 @@ def create_application() -> FastAPI:
 
 app = create_application()
 
+@app.on_event("startup")
+async def seed_initial_data():
+    db = SessionLocal()
+    try:
+        # Check if there are any news articles
+        news_count = db.query(News).count()
+        if news_count == 0:
+            print("Seeding initial news data...")
+            # Create a news aggregator
+            aggregator = NewsAggregator(db)
+            # Trigger a news fetch
+            await aggregator.fetch_all_sources()
+    except Exception as e:
+        print(f"Error seeding data: {e}")
+    finally:
+        db.close()
+
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
