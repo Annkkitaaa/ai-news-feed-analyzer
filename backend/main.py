@@ -12,6 +12,8 @@ from app.core.events import create_start_app_handler, create_stop_app_handler
 # Create database tables
 Base.metadata.create_all(bind=engine)
 
+
+
 def create_application() -> FastAPI:
     application = FastAPI(
         title=settings.PROJECT_NAME,
