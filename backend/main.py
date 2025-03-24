@@ -2,7 +2,7 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.db.session import SessionLocal, engine
+from app.db.session import SessionLocal, engine, Base
 from app.db.models import News, Category, NewsSource
 from app.api.routes import auth, news, profiles, subscriptions
 from app.core.config import settings
@@ -86,10 +86,53 @@ async def seed_initial_data():
         news_count = db.query(News).count()
         if news_count == 0:
             print("Seeding initial news data...")
-            # Create a news aggregator
-            aggregator = NewsAggregator(db)
-            # Trigger a news fetch
-            await aggregator.fetch_all_sources()
+            # Create sample news articles
+            sample_news = [
+                {
+                    "title": "Sample News Article 1",
+                    "url": "https://example.com/news/1",
+                    "content": "This is a sample news article with some content to display.",
+                    "summary": "Sample summary for testing purposes.",
+                    "published_at": datetime.utcnow(),
+                    "author": "AI News Team",
+                    "image_url": "https://via.placeholder.com/800x400",
+                },
+                {
+                    "title": "Sample News Article 2",
+                    "url": "https://example.com/news/2",
+                    "content": "Another sample article with different content for testing.",
+                    "summary": "Another sample summary for testing the news feed.",
+                    "published_at": datetime.utcnow(),
+                    "author": "AI News Team",
+                    "image_url": "https://via.placeholder.com/800x400",
+                }
+            ]
+            
+            # Create a sample source first
+            sample_source = NewsSource(
+                name="Sample Source",
+                url="https://example.com",
+                source_type="rss"
+            )
+            db.add(sample_source)
+            db.flush()
+            
+            # Add sample articles
+            for article_data in sample_news:
+                article = News(
+                    title=article_data["title"],
+                    url=article_data["url"],
+                    content=article_data["content"],
+                    summary=article_data["summary"],
+                    published_at=article_data["published_at"],
+                    author=article_data["author"],
+                    image_url=article_data["image_url"],
+                    source_id=sample_source.id
+                )
+                db.add(article)
+            
+            db.commit()
+            print("Sample news data added successfully")
     except Exception as e:
         print(f"Error seeding data: {e}")
     finally:
