@@ -167,14 +167,31 @@ def get_trend_analysis(
 ) -> Any:
     """Get an analysis of news trends."""
     summarizer = NewsSummarizer(db)
-    analysis = summarizer.generate_trend_analysis(days, category)
-    
-    return {
-        "category": category,
-        "days": days,
-        "analysis": analysis,
-        "generated_at": datetime.utcnow()
-    }
+    try:
+        analysis_result = summarizer.generate_trend_analysis(days, category)
+        
+        # Make sure analysis is always a string
+        if isinstance(analysis_result, dict) and "analysis" in analysis_result:
+            analysis_text = analysis_result["analysis"]
+        else:
+            analysis_text = str(analysis_result)
+        
+        # Return a properly formatted response
+        return {
+            "category": category,
+            "days": days,
+            "analysis": analysis_text,
+            "generated_at": datetime.utcnow()
+        }
+    except Exception as e:
+        logger.error(f"Error generating trend analysis: {str(e)}")
+        # Return a fallback analysis
+        return {
+            "category": category,
+            "days": days,
+            "analysis": "Unable to generate trend analysis at this time. Please try again later.",
+            "generated_at": datetime.utcnow()
+        }
 
 @router.get("/digest")
 def get_news_digest(
