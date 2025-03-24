@@ -438,81 +438,65 @@ class NewsSummarizer:
         
         return digest
 
-    def generate_trend_analysis(self, days: int = 7, category: Optional[str] = None) -> Dict[str, Any]:
+    def generate_trend_analysis(self, days: int = 7, category: Optional[str] = None) -> str:
         """Generate an analysis of news trends over time."""
         if not self.llm or not self.models_available():
-            return {
-                "analysis": "Trend analysis currently unavailable.",
-                "days": days,
-                "category": category,
-                "generated_at": datetime.utcnow().isoformat()
-            }
+            return "Trend analysis currently unavailable."
         
         # Get recent news
-        cutoff_date = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=days)
-        query = self.db.query(News).filter(News.published_at >= cutoff_date)
-        
-        # Filter by category if provided
-        if category:
-            category_obj = self.db.query(Category).filter(Category.name == category).first()
-            if category_obj:
-                query = query.join(News.categories).filter(Category.id == category_obj.id)
-        
-        news_items = query.order_by(News.published_at.desc()).limit(30).all()
-        
-        if not news_items:
-            return {
-                "analysis": "Insufficient data for trend analysis.",
-                "days": days,
-                "category": category,
-                "generated_at": datetime.utcnow().isoformat()
-            }
-        
-        # Compile titles and summaries
-        news_text = ""
-        for i, news in enumerate(news_items[:20]):  # Limit to 20 for manageability
-            news_text += f"Article {i+1}: {news.title}\n"
-            if news.summary:
-                news_text += f"Summary: {news.summary[:200]}...\n\n"
-            else:
-                news_text += f"Published: {news.published_at}\n\n"
-        
-        # Create a prompt for trend analysis
-        category_text = f" in the {category} category" if category else ""
-        prompt = PromptTemplate(
-            input_variables=["category_text", "news_text", "days"],
-            template="""
-            Based on these recent news articles{category_text} from the past {days} days, 
-            identify 3-5 key trends or patterns. Provide a thoughtful analysis that highlights 
-            emerging topics, shifts in focus, or recurring themes. Your analysis should be 
-            insightful and concise (about 4-6 sentences).
-            
-            {news_text}
-            
-            Trend Analysis:
-            """
-        )
-        
         try:
-            chain = LLMChain(llm=self.llm, prompt=prompt)
-            analysis = chain.run(
-                category_text=category_text,
-                news_text=news_text,
-                days=days
+            cutoff_date = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=days)
+            query = self.db.query(News).filter(News.published_at >= cutoff_date)
+            
+            # Filter by category if provided
+            if category:
+                category_obj = self.db.query(Category).filter(Category.name == category).first()
+                if category_obj:
+                    query = query.join(News.categories).filter(Category.id == category_obj.id)
+            
+            news_items = query.order_by(News.published_at.desc()).limit(30).all()
+            
+            if not news_items:
+                return "Insufficient data for trend analysis."
+            
+            # Compile titles and summaries
+            news_text = ""
+            for i, news in enumerate(news_items[:20]):  # Limit to 20 for manageability
+                news_text += f"Article {i+1}: {news.title}\n"
+                if news.summary:
+                    news_text += f"Summary: {news.summary[:200]}...\n\n"
+                else:
+                    news_text += f"Published: {news.published_at}\n\n"
+            
+            # Create a prompt for trend analysis
+            category_text = f" in the {category} category" if category else ""
+            prompt = PromptTemplate(
+                input_variables=["category_text", "news_text", "days"],
+                template="""
+                Based on these recent news articles{category_text} from the past {days} days, 
+                identify 3-5 key trends or patterns. Provide a thoughtful analysis that highlights 
+                emerging topics, shifts in focus, or recurring themes. Your analysis should be 
+                insightful and concise (about 4-6 sentences).
+                
+                {news_text}
+                
+                Trend Analysis:
+                """
             )
             
-            # Return the analysis
-            return {
-                "analysis": analysis.strip(),
-                "days": days,
-                "category": category,
-                "generated_at": datetime.utcnow().isoformat()
-            }
+            try:
+                chain = LLMChain(llm=self.llm, prompt=prompt)
+                analysis = chain.run(
+                    category_text=category_text,
+                    news_text=news_text,
+                    days=days
+                )
+                
+                # Return just the string
+                return analysis.strip()
+            except Exception as e:
+                logger.error(f"Error generating trend analysis: {e}")
+                return "Trend analysis currently unavailable due to technical issues."
         except Exception as e:
-            logger.error(f"Error generating trend analysis: {e}")
-            return {
-                "analysis": "Trend analysis currently unavailable due to technical issues.",
-                "days": days,
-                "category": category,
-                "generated_at": datetime.utcnow().isoformat()
-            }
+            logger.error(f"Error retrieving news for trend analysis: {e}")
+            return "Unable to retrieve news data for trend analysis."
