@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(timeout 6 bash:*)",
+      "Bash(curl:*)",
+      "Bash(python -m json.tool:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
