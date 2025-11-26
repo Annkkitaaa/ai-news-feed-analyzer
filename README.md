@@ -175,3 +175,90 @@ docker-compose up --build
 - **API Documentation**: http://localhost:8000/docs
 - **Alternative API Docs**: http://localhost:8000/redoc
 
+## Usage
+
+### First Time Setup
+
+1. **Open the frontend** at http://localhost:3000
+2. **Register a new account** with your email and password
+3. **Set up your interests** in your profile settings
+4. **Fetch news manually** or wait for automatic hourly updates
+5. **Browse your personalized feed**
+
+### Test Account
+
+For testing purposes, a test account has been created:
+- **Email**: `test@example.com`
+- **Password**: `testpassword123`
+
+### API Endpoints
+
+#### Authentication
+- `POST /api/v1/register` - Register new user
+- `POST /api/v1/login` - Login and get JWT token
+- `GET /api/v1/me` - Get current user info
+- `PUT /api/v1/me` - Update user profile
+
+#### News
+- `GET /api/v1/news/` - List all news (with filters, search, pagination)
+- `GET /api/v1/news/{id}` - Get specific article
+- `GET /api/v1/news/{id}/summary` - Get article summary
+- `GET /api/v1/news/personalized/feed` - Get personalized news feed
+- `GET /api/v1/news/trending/feed` - Get trending articles
+- `GET /api/v1/news/digest` - Generate personalized digest
+- `POST /api/v1/news/fetch` - Manually trigger news fetch
+- `GET /api/v1/news/categories/list` - List all categories
+
+#### Profiles & Subscriptions
+- `GET /api/v1/profiles/interests` - Get user interests
+- `POST /api/v1/profiles/interests` - Add interests
+- `GET /api/v1/subscriptions/` - Get subscription settings
+- `PUT /api/v1/subscriptions/` - Update email digest preferences
+
+## Configuration
+
+### News Sources
+
+Edit the `RSS_SOURCES` in `backend/.env` to add more RSS feeds:
+
+```env
+RSS_SOURCES=https://news.ycombinator.com/rss,https://feeds.arstechnica.com/arstechnica/index,https://www.theverge.com/rss/index.xml
+```
+
+### Recommended Open RSS Feeds
+
+These feeds work without authentication or paywalls:
+- **Hacker News**: `https://news.ycombinator.com/rss`
+- **Ars Technica**: `https://feeds.arstechnica.com/arstechnica/index`
+- **The Verge**: `https://www.theverge.com/rss/index.xml`
+- **TechCrunch**: `https://techcrunch.com/feed/`
+- **Reddit**: `https://www.reddit.com/r/technology/.rss`
+- **GitHub Trending**: `https://mshibanami.github.io/GitHubTrendingRSS/daily/all.xml`
+
+### News API Integration
+
+1. Get a free API key from [NewsAPI.org](https://newsapi.org/)
+2. Add to `backend/.env`:
+```env
+NEWS_API_KEY=your-api-key-here
+```
+
+### Background Tasks
+
+The system automatically runs these scheduled tasks:
+- **News Fetching**: Every hour (configurable)
+- **Daily Digests**: 8 AM UTC
+- **Weekly Digests**: Mondays at 8 AM UTC
+- **Old News Cleanup**: 3 AM UTC (keeps last 30 days)
+
+To run Celery workers manually:
+```bash
+cd backend
+
+# Start Celery worker
+celery -A celery_worker worker --loglevel=info
+
+# Start Celery beat (scheduler)
+celery -A celery_worker beat --loglevel=info
+```
+
