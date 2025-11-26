@@ -66,3 +66,66 @@ An intelligent news aggregation and personalization platform powered by AI and N
 - npm 11+
 - Git
 
+### Backend Setup
+
+1. **Clone the repository:**
+```bash
+git clone <repository-url>
+cd ai-news-feed-analyzer
+```
+
+2. **Install Python dependencies:**
+```bash
+cd backend
+pip install -r requirements.txt
+```
+
+3. **Configure environment variables:**
+
+Create or edit `backend/.env`:
+```env
+# Base Settings
+PROJECT_NAME=NewsFlow
+API_V1_STR=/api/v1
+SECRET_KEY=your-secret-key-here
+ACCESS_TOKEN_EXPIRE_MINUTES=11520
+
+# CORS
+BACKEND_CORS_ORIGINS=http://localhost:3000,http://localhost:8000
+
+# Database - SQLite (development)
+DATABASE_URL=sqlite:///./newsfeed.db
+
+# Database - PostgreSQL (production)
+# DATABASE_URL=postgresql://user:password@localhost:5432/news_feed
+
+# MongoDB (optional)
+# MONGODB_URL=mongodb://localhost:27017/newsfeed
+
+# Email Settings (optional)
+EMAILS_ENABLED=False
+SMTP_TLS=True
+SMTP_PORT=587
+SMTP_HOST=smtp.gmail.com
+SMTP_USER=your-email@gmail.com
+SMTP_PASSWORD=your-password
+EMAILS_FROM_EMAIL=noreply@newsflow.com
+EMAILS_FROM_NAME=NewsFlow
+
+# LLM Settings
+LLM_TYPE=huggingface
+LLM_MODEL_ID=TinyLlama/TinyLlama-1.1B-Chat-v1.0
+LLM_API_KEY=
+
+# News API Settings
+NEWS_API_KEY=your-newsapi-key
+NEWS_UPDATE_INTERVAL_MINUTES=60
+RSS_SOURCES=https://news.ycombinator.com/rss,https://rss.nytimes.com/services/xml/rss/nyt/Technology.xml
+```
+
+4. **Initialize the database:**
+```bash
+# Database tables are automatically created on first run
+python main.py
+```
+
