@@ -262,3 +262,114 @@ celery -A celery_worker worker --loglevel=info
 celery -A celery_worker beat --loglevel=info
 ```
 
+## Testing
+
+### Manual Testing
+
+1. **Health Check:**
+```bash
+curl http://localhost:8000/health
+```
+
+2. **Register User:**
+```bash
+curl -X POST "http://localhost:8000/api/v1/register" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"user@example.com","password":"password123"}'
+```
+
+3. **Login:**
+```bash
+curl -X POST "http://localhost:8000/api/v1/login" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "username=user@example.com&password=password123"
+```
+
+4. **Fetch News (with auth token):**
+```bash
+curl -X POST "http://localhost:8000/api/v1/news/fetch" \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE"
+```
+
+### Running Tests
+
+```bash
+cd backend
+pytest
+```
+
+## Known Issues & Limitations
+
+### News Source Restrictions
+
+Many premium news websites (CNN, NYT, WSJ, etc.) block web scraping with 403/401 errors. This is expected behavior. Recommendations:
+
+1. **Use RSS feeds** from open sources (see Configuration section)
+2. **Use News APIs** with valid API keys
+3. **Configure proxy services** for enterprise deployments
+4. **Stick to open/free sources** for development
+
+### AI Model Warnings
+
+The application may show warnings about:
+- TensorFlow operations
+- Transformers module compatibility
+- Model parameter offloading
+
+These are informational and don't affect functionality. The system includes fallbacks for all AI features.
+
+### Windows Encoding
+
+On Windows, ensure your terminal supports UTF-8 encoding to avoid display issues with special characters.
+
+## Troubleshooting
+
+### Backend won't start
+
+**Missing dependencies:**
+```bash
+cd backend
+pip install pymongo redis celery feedparser newspaper3k lxml_html_clean
+```
+
+**Database errors:**
+- Delete `backend/newsfeed.db` and restart to recreate
+- Check `DATABASE_URL` in `.env`
+
+### Frontend won't start
+
+**Missing dependencies:**
+```bash
+cd frontend
+rm -rf node_modules package-lock.json
+npm install
+```
+
+**API connection errors:**
+- Check `REACT_APP_API_URL` in `frontend/.env`
+- Ensure backend is running on port 8000
+- Check CORS settings in `backend/.env`
+
+### No news appearing
+
+1. **Manually trigger fetch:**
+   - Login to the app
+   - Use the fetch button in the UI
+   - Or call: `POST /api/v1/news/fetch`
+
+2. **Check backend logs** for errors
+3. **Verify RSS feeds** are accessible
+4. **Check News API key** if using NewsAPI
+
+### News fetch returns 403 errors
+
+This is normal for many news sites. Solutions:
+- Use open RSS feeds (see Configuration)
+- Get API keys from news providers
+- Configure different news sources
+
+## Project Structure
+
+```
+ai-news-feed-analyzer/
+
