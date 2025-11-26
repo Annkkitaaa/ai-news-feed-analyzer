@@ -368,8 +368,3 @@ This is normal for many news sites. Solutions:
 - Get API keys from news providers
 - Configure different news sources
 
-## Project Structure
-
-```
-ai-news-feed-analyzer/
-
