@@ -129,3 +129,49 @@ RSS_SOURCES=https://news.ycombinator.com/rss,https://rss.nytimes.com/services/xm
 python main.py
 ```
 
+### Frontend Setup
+
+1. **Install Node.js dependencies:**
+```bash
+cd frontend
+npm install
+```
+
+2. **Configure environment variables:**
+
+Create or edit `frontend/.env`:
+```env
+REACT_APP_API_URL=http://localhost:8000/api/v1
+```
+
+## Running the Application
+
+### Development Mode
+
+**Option 1: Run Backend and Frontend Separately**
+
+Terminal 1 - Backend:
+```bash
+cd backend
+python main.py
+```
+
+Terminal 2 - Frontend:
+```bash
+cd frontend
+npm start
+```
+
+**Option 2: Using Docker Compose (Production)**
+
+```bash
+docker-compose up --build
+```
+
+### Access Points
+
+- **Frontend UI**: http://localhost:3000
+- **Backend API**: http://localhost:8000
+- **API Documentation**: http://localhost:8000/docs
+- **Alternative API Docs**: http://localhost:8000/redoc
+
