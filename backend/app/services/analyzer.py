@@ -1,7 +1,7 @@
 import logging
 import re
 from typing import List, Dict, Any, Optional, Tuple
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 import numpy as np
 from sqlalchemy.orm import Session
@@ -32,150 +32,93 @@ class NewsAnalyzer:
         self.interest_embeddings = None
 
     def _initialize_llm(self):
-        """Initialize the right LLM based on settings."""
+        """Initialize Groq API client for text generation (open-source Llama model)."""
         try:
-            # Try to use a small Hugging Face model
-            from transformers import pipeline, AutoModelForCausalLM, AutoTokenizer
+            from groq import Groq
+            from app.core.config import settings
 
-            try:
-                # First try to load Tiny Llama or similar small model
-                model_id = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
-                # Use limited precision to save memory
-                tokenizer = AutoTokenizer.from_pretrained(model_id)
-                model = AutoModelForCausalLM.from_pretrained(
-                    model_id, 
-                    torch_dtype="auto", 
-                    device_map="auto",
-                    low_cpu_mem_usage=True
-                )
-                
-                pipe = pipeline(
-                    "text-generation",
-                    model=model,
-                    tokenizer=tokenizer,
-                    max_length=512,
-                    temperature=0.7,
-                    top_p=0.95,
-                    repetition_penalty=1.2
-                )
-                logger.info(f"Successfully loaded model: {model_id}")
-                
-                # Create a wrapper class that mimics LangChain's interface
-                class HFPipelineWrapper:
-                    def __init__(self, pipeline):
-                        self.pipeline = pipeline
-                    
-                    def __call__(self, prompt, **kwargs):
-                        try:
-                            result = self.pipeline(prompt, max_new_tokens=256)[0]['generated_text']
-                            # Extract just the generated portion
-                            response = result[len(prompt):].strip()
-                            return response
-                        except Exception as e:
-                            logger.error(f"Error generating text: {e}")
-                            return "Unable to generate analysis at this time."
-                
-                return HFPipelineWrapper(pipe)
-                
-            except Exception as e:
-                logger.error(f"Error loading advanced model: {e}")
-                
-                # Try with minimal configuration - distilgpt2 is very small
-                try:
-                    model_id = "distilgpt2"
-                    pipe = pipeline(
-                        "text-generation",
-                        model=model_id,
-                        max_length=256,
-                        temperature=0.7,
-                        device_map="auto"
-                    )
-                    logger.info(f"Successfully loaded fallback model: {model_id}")
-                    
-                    class SimpleGenerator:
-                        def __init__(self, pipeline):
-                            self.pipeline = pipeline
-                        
-                        def __call__(self, prompt, **kwargs):
-                            try:
-                                result = self.pipeline(prompt, max_new_tokens=100)[0]['generated_text']
-                                # Extract just the generated portion
-                                if result.startswith(prompt):
-                                    return result[len(prompt):].strip()
-                                return result
-                            except Exception as e:
-                                logger.error(f"Error in simple generator: {e}")
-                                return "Analysis not available."
-                    
-                    return SimpleGenerator(pipe)
-                
-                except Exception as tiny_error:
-                    logger.error(f"Error loading tiny model: {tiny_error}")
-                    
-                    # Create a rule-based text generator as fallback
-                    class RuleBasedGenerator:
-                        def __call__(self, prompt, **kwargs):
-                            # Generate a simple analysis based on the prompt
-                            if "trend" in prompt.lower():
-                                return """Three key trends are evident in recent news:
-                                1. Technology advancements in healthcare and AI
-                                2. Economic fluctuations due to policy changes
-                                3. Growing focus on health and wellness research
-                                
-                                These patterns show increasing interest in technological solutions, economic stability, and personal wellbeing."""
-                            
-                            elif "summary" in prompt.lower() or "summarize" in prompt.lower():
-                                return "The article discusses important developments in the field, highlighting key findings and their potential implications for future research and applications."
-                            
-                            else:
-                                return "The analysis shows multiple important factors that should be considered carefully."
-                    
-                    logger.warning("Using rule-based generator due to model loading failures")
-                    return RuleBasedGenerator()
-        
-        except Exception as e:
-            logger.error(f"Error initializing any model: {e}")
-            
-            # Final fallback - static text generator
-            class StaticTextGenerator:
+            if not settings.GROQ_API_KEY:
+                logger.warning("GROQ_API_KEY not set. AI analysis will use rule-based fallback.")
+                return self._rule_based_generator()
+
+            client = Groq(api_key=settings.GROQ_API_KEY)
+            model = settings.GROQ_MODEL
+
+            class GroqGenerator:
+                def __init__(self, client, model):
+                    self.client = client
+                    self.model = model
+
                 def __call__(self, prompt, **kwargs):
-                    return "Analysis not available due to technical limitations."
-            
-            return StaticTextGenerator()
+                    try:
+                        response = self.client.chat.completions.create(
+                            model=self.model,
+                            messages=[{"role": "user", "content": prompt[:4000]}],
+                            max_tokens=512,
+                            temperature=0.5,
+                        )
+                        return response.choices[0].message.content.strip()
+                    except Exception as e:
+                        logger.error(f"Groq generation error: {e}")
+                        return "Analysis not available."
+
+            logger.info(f"Groq analyzer initialized with model: {model}")
+            return GroqGenerator(client, model)
+
+        except ImportError:
+            logger.error("groq package not installed. Run: pip install groq")
+            return self._rule_based_generator()
+        except Exception as e:
+            logger.error(f"Error initializing Groq analyzer: {e}")
+            return self._rule_based_generator()
+
+    def _rule_based_generator(self):
+        """Simple rule-based fallback when no LLM API is configured."""
+        class RuleBasedGenerator:
+            def __call__(self, prompt, **kwargs):
+                if "trend" in prompt.lower():
+                    return "Recent news shows diverse topics across technology, economy, and current events."
+                elif "summary" in prompt.lower() or "summarize" in prompt.lower():
+                    return "The article discusses important developments highlighting key findings and their implications."
+                else:
+                    return "Multiple important factors should be considered in this analysis."
+        return RuleBasedGenerator()
 
     def _initialize_embedding_model(self):
-        """Initialize the embedding model."""
+        """Initialize a lightweight ONNX-based embedding model via fastembed."""
         try:
-            # Use a lightweight sentence transformer model
-            from sentence_transformers import SentenceTransformer
-            
-            # Use all-MiniLM-L6-v2 - very small but effective
-            model = SentenceTransformer('all-MiniLM-L6-v2')
-            
+            from fastembed import TextEmbedding
+
+            # BAAI/bge-small-en-v1.5 — ~130 MB, no PyTorch needed
+            model = TextEmbedding(model_name="BAAI/bge-small-en-v1.5")
+
             class EmbeddingWrapper:
                 def __init__(self, model):
                     self.model = model
-                
+
                 def embed_documents(self, texts):
                     try:
-                        return self.model.encode(texts)
+                        return list(self.model.embed(texts))
                     except Exception as e:
                         logger.error(f"Error encoding texts: {e}")
-                        # Return zero embeddings of the right dimension as fallback
                         return [np.zeros(384) for _ in range(len(texts))]
-            
+
+            logger.info("fastembed embedding model loaded: BAAI/bge-small-en-v1.5")
             return EmbeddingWrapper(model)
-        
+
+        except ImportError:
+            logger.error("fastembed not installed. Run: pip install fastembed")
+            return self._dummy_embedding()
         except Exception as e:
             logger.error(f"Error initializing embedding model: {e}")
-            
-            # Fallback - return basic embedding function
-            class DummyEmbedding:
-                def embed_documents(self, texts):
-                    # Return dummy embeddings (all zeros)
-                    return [np.zeros(384) for _ in range(len(texts))]
-            
-            return DummyEmbedding()
+            return self._dummy_embedding()
+
+    def _dummy_embedding(self):
+        class DummyEmbedding:
+            def embed_documents(self, texts):
+                return [np.zeros(384) for _ in range(len(texts))]
+        logger.warning("Using dummy embeddings — article categorization will not work properly.")
+        return DummyEmbedding()
 
     # Add a method to check if LLM and embedding models are available
     def models_available(self):

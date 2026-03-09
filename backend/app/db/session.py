@@ -3,8 +3,14 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from typing import Generator
-from pymongo import MongoClient
 from app.core.config import settings
+
+try:
+    from pymongo import MongoClient
+    _pymongo_available = True
+except ImportError:
+    MongoClient = None
+    _pymongo_available = False
 
 from app.core.config import settings
 
@@ -15,11 +21,13 @@ def connect_to_mongodb():
     """Connect to MongoDB database."""
     global _mongodb_client
     if _mongodb_client is None:
+        if not _pymongo_available:
+            print("Warning: pymongo not installed. MongoDB features disabled.")
+            return None
         if settings.MONGODB_URL:
             _mongodb_client = MongoClient(settings.MONGODB_URL)
             return _mongodb_client
         else:
-            # Handle case where MongoDB URL is not configured
             print("Warning: MongoDB URL not configured. Some features may not work.")
     return _mongodb_client
 

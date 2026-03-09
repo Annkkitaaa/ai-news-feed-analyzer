@@ -38,10 +38,9 @@ class Settings(BaseSettings):
     # ScrapeGraph AI
     SCRAPEGRAPH_API_KEY: Optional[str] = os.getenv("SCRAPEGRAPH_API_KEY")
     
-    # LLM Settings
-    LLM_TYPE: str = os.getenv("LLM_TYPE", "huggingface")
-    LLM_MODEL_ID: str = os.getenv("LLM_MODEL_ID", "mistralai/Mistral-7B-Instruct-v0.2")
-    LLM_API_KEY: Optional[str] = os.getenv("LLM_API_KEY")
+    # Groq API (open-source models via API — get free key at console.groq.com)
+    GROQ_API_KEY: Optional[str] = os.getenv("GROQ_API_KEY")
+    GROQ_MODEL: str = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
     
     # News API Settings
     NEWS_API_KEY: Optional[str] = os.getenv("NEWS_API_KEY")
