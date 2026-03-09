@@ -12,8 +12,6 @@ except ImportError:
     MongoClient = None
     _pymongo_available = False
 
-from app.core.config import settings
-
 # MongoDB connection
 _mongodb_client = None
 
