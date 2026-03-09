@@ -14,6 +14,11 @@ from app.core.config import settings
 # Set up logging
 logger = logging.getLogger(__name__)
 
+# Module-level model cache — initialized once, reused across all requests
+_cached_llm = None
+_cached_embedding_model = None
+
+
 class NewsAnalyzer:
     def __init__(self, db: Session):
         self.db = db
@@ -33,13 +38,18 @@ class NewsAnalyzer:
 
     def _initialize_llm(self):
         """Initialize Groq API client for text generation (open-source Llama model)."""
+        global _cached_llm
+        if _cached_llm is not None:
+            return _cached_llm
+
         try:
             from groq import Groq
             from app.core.config import settings
 
             if not settings.GROQ_API_KEY:
                 logger.warning("GROQ_API_KEY not set. AI analysis will use rule-based fallback.")
-                return self._rule_based_generator()
+                _cached_llm = self._rule_based_generator()
+                return _cached_llm
 
             client = Groq(api_key=settings.GROQ_API_KEY)
             model = settings.GROQ_MODEL
@@ -63,14 +73,17 @@ class NewsAnalyzer:
                         return "Analysis not available."
 
             logger.info(f"Groq analyzer initialized with model: {model}")
-            return GroqGenerator(client, model)
+            _cached_llm = GroqGenerator(client, model)
+            return _cached_llm
 
         except ImportError:
             logger.error("groq package not installed. Run: pip install groq")
-            return self._rule_based_generator()
+            _cached_llm = self._rule_based_generator()
+            return _cached_llm
         except Exception as e:
             logger.error(f"Error initializing Groq analyzer: {e}")
-            return self._rule_based_generator()
+            _cached_llm = self._rule_based_generator()
+            return _cached_llm
 
     def _rule_based_generator(self):
         """Simple rule-based fallback when no LLM API is configured."""
@@ -86,6 +99,10 @@ class NewsAnalyzer:
 
     def _initialize_embedding_model(self):
         """Initialize a lightweight ONNX-based embedding model via fastembed."""
+        global _cached_embedding_model
+        if _cached_embedding_model is not None:
+            return _cached_embedding_model
+
         try:
             from fastembed import TextEmbedding
 
@@ -104,14 +121,17 @@ class NewsAnalyzer:
                         return [np.zeros(384) for _ in range(len(texts))]
 
             logger.info("fastembed embedding model loaded: BAAI/bge-small-en-v1.5")
-            return EmbeddingWrapper(model)
+            _cached_embedding_model = EmbeddingWrapper(model)
+            return _cached_embedding_model
 
         except ImportError:
             logger.error("fastembed not installed. Run: pip install fastembed")
-            return self._dummy_embedding()
+            _cached_embedding_model = self._dummy_embedding()
+            return _cached_embedding_model
         except Exception as e:
             logger.error(f"Error initializing embedding model: {e}")
-            return self._dummy_embedding()
+            _cached_embedding_model = self._dummy_embedding()
+            return _cached_embedding_model
 
     def _dummy_embedding(self):
         class DummyEmbedding:

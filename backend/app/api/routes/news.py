@@ -119,8 +119,8 @@ def get_trend_analysis(
 ) -> Any:
     """Get an analysis of news trends."""
     try:
-        summarizer = NewsSummarizer(db)
-        analysis_text = summarizer.generate_trend_analysis(days, category)
+        analyzer = NewsAnalyzer(db)
+        analysis_text = analyzer.generate_trend_analysis(days, category)
         
         # Return a properly formatted response
         return {

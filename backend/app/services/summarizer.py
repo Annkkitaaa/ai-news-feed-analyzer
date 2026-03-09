@@ -11,6 +11,10 @@ from app.core.config import settings
 # Set up logging
 logger = logging.getLogger(__name__)
 
+# Module-level cache — Groq client is stateless so safe to share across requests
+_cached_summarizer_llm = None
+
+
 class NewsSummarizer:
     def __init__(self, db: Session):
         self.db = db
@@ -20,6 +24,10 @@ class NewsSummarizer:
 
     def _initialize_llm(self):
         """Initialize Groq API client for summarization (open-source Llama model)."""
+        global _cached_summarizer_llm
+        if _cached_summarizer_llm is not None:
+            return _cached_summarizer_llm
+
         try:
             from groq import Groq
             from app.core.config import settings
@@ -65,7 +73,8 @@ class NewsSummarizer:
                         return "Summary unavailable."
 
             logger.info(f"Groq summarizer initialized with model: {model}")
-            return GroqSummarizer(client, model)
+            _cached_summarizer_llm = GroqSummarizer(client, model)
+            return _cached_summarizer_llm
 
         except ImportError:
             logger.error("groq package not installed. Run: pip install groq")
